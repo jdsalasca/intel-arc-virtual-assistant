@@ -1,0 +1,50 @@
+{
+  "app_name": "Intel AI Assistant",
+  "app_version": "1.0.0",
+  "log_level": "INFO",
+  "environment": "development",
+  "current_intel_profile": null,
+  "auto_detect_hardware": true,
+  "model": {
+    "name": "phi-3-mini-int4",
+    "provider": "local_openvino",
+    "device": "CPU",
+    "precision": "FP16",
+    "max_tokens": 256,
+    "temperature": 0.7,
+    "batch_size": 1,
+    "context_length": 2048,
+    "enable_streaming": true
+  },
+  "voice": {
+    "tts_enabled": true,
+    "tts_model": "speecht5-tts",
+    "tts_device": "NPU",
+    "stt_enabled": true,
+    "stt_model": "whisper-base",
+    "stt_device": "NPU"
+  },
+  "web": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "debug": false,
+    "workers": 1
+  },
+  "conversation": {
+    "max_history": 50,
+    "context_strategy": "sliding_window",
+    "save_conversations": true
+  },
+  "tools": {
+    "enabled_tools": [
+      "web_search",
+      "file_operations"
+    ],
+    "gmail_enabled": false
+  },
+  "performance": {
+    "enable_intel_optimizations": true,
+    "enable_openvino_optimizations": true,
+    "memory_pool_size_mb": 1024
+  }
+}

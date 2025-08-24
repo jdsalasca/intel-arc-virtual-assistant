@@ -18,6 +18,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 
+# Import configuration system
+from config import (
+    initialize_settings,
+    initialize_environment,
+    get_settings,
+    get_env_manager
+)
+
 # Import our services and providers
 from services.intel_optimizer import IntelOptimizer
 from services.model_manager import ModelManager
@@ -42,6 +50,8 @@ intel_optimizer = None
 model_manager = None
 conversation_manager = None
 storage_provider = None
+settings = None
+env_manager = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -50,9 +60,37 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting Virtual Assistant...")
     
     try:
-        # Initialize Intel optimizer
-        global intel_optimizer, model_manager, conversation_manager, storage_provider
+        # Initialize configuration system
+        global intel_optimizer, model_manager, conversation_manager, storage_provider, settings, env_manager
         
+        # Initialize environment and settings
+        env_manager = initialize_environment()
+        settings = initialize_settings()
+        
+        # Validate environment
+        validation = env_manager.validate_environment()
+        if not validation["valid"]:
+            for error in validation["errors"]:
+                logger.error(f"Environment validation error: {error}")
+        
+        for warning in validation["warnings"]:
+            logger.warning(f"Environment warning: {warning}")
+        
+        for info in validation["info"]:
+            logger.info(f"Environment info: {info}")
+        
+        logger.info("✅ Configuration system initialized")
+        
+        # Display current Intel profile
+        if settings.current_intel_profile:
+            profile_info = settings.get_intel_profile_info()
+            if profile_info:
+                logger.info(f"🔧 Intel Profile: {profile_info['name']}")
+                logger.info(f"📊 Hardware: CPU={profile_info['capabilities']['cpu']['performance']}, "
+                           f"GPU={profile_info['capabilities']['gpu']['performance']}, "
+                           f"NPU={profile_info['capabilities']['npu']['performance']}")
+        
+        # Initialize Intel optimizer with configuration
         intel_optimizer = IntelOptimizer()
         logger.info("✅ Intel optimizer initialized")
         
@@ -72,9 +110,10 @@ async def lifespan(app: FastAPI):
         openvino_provider = OpenVINOProvider()
         model_manager.register_provider("openvino", openvino_provider)
         
-        # Load default model
-        await model_manager.load_model("qwen2.5-7b-int4")
-        logger.info("✅ Model manager initialized")
+        # Load default model from settings
+        default_model = settings.model.name
+        await model_manager.load_model(default_model)
+        logger.info(f"✅ Model manager initialized with {default_model}")
         
         # Hardware summary
         hardware = intel_optimizer.get_hardware_summary()
