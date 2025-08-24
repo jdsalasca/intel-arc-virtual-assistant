@@ -33,7 +33,7 @@ class APIProvider(Enum):
 @dataclass
 class ModelSettings:
     """Model configuration settings."""
-    name: str = "phi-3-mini-int4"
+    name: str = "mistral-7b-instruct"
     provider: APIProvider = APIProvider.LOCAL_OPENVINO
     model_path: str = ""
     device: str = "CPU"  # CPU, GPU, NPU, AUTO

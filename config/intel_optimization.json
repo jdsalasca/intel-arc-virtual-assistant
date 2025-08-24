@@ -1,0 +1,28 @@
+{
+  "hardware_detection": {
+    "auto_detect": true,
+    "prefer_intel_devices": true
+  },
+  "cpu_optimization": {
+    "use_mkl": true,
+    "use_mkl_dnn": true,
+    "threads": "auto"
+  },
+  "gpu_optimization": {
+    "enable_arc_gpu": true,
+    "memory_management": "auto"
+  },
+  "npu_optimization": {
+    "enable_ai_boost": true,
+    "precision": "int8"
+  },
+  "openvino_config": {
+    "device_priority": [
+      "NPU",
+      "GPU",
+      "CPU"
+    ],
+    "performance_hint": "THROUGHPUT",
+    "enable_caching": true
+  }
+}

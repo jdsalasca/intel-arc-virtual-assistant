@@ -30,9 +30,14 @@ from config import (
 from services.intel_optimizer import IntelOptimizer
 from services.model_manager import ModelManager
 from services.conversation_manager import ConversationManager
+from services.chat_agent_orchestrator import ChatAgentOrchestrator
+from services.tool_registry import ToolRegistry
 
-# Import providers (we'll create these next)
-from providers.models.openvino_provider import OpenVINOProvider
+# Import providers
+from providers.models.mistral_openvino_provider import MistralOpenVINOProvider
+from providers.voice.speecht5_openvino_provider import SpeechT5OpenVINOProvider
+from providers.tools.enhanced_web_search_tool import EnhancedWebSearchTool
+from providers.tools.gmail_connector_tool import GmailConnectorTool
 from providers.storage.sqlite_provider import SQLiteProvider
 
 # Import API routes (we'll create these next)
@@ -49,6 +54,8 @@ logger = logging.getLogger(__name__)
 intel_optimizer = None
 model_manager = None
 conversation_manager = None
+chat_agent = None
+tool_registry = None
 storage_provider = None
 settings = None
 env_manager = None
@@ -61,7 +68,7 @@ async def lifespan(app: FastAPI):
     
     try:
         # Initialize configuration system
-        global intel_optimizer, model_manager, conversation_manager, storage_provider, settings, env_manager
+        global intel_optimizer, model_manager, conversation_manager, chat_agent, tool_registry, storage_provider, settings, env_manager
         
         # Initialize environment and settings
         env_manager = initialize_environment()
@@ -106,14 +113,40 @@ async def lifespan(app: FastAPI):
         # Initialize model manager
         model_manager = ModelManager(intel_optimizer)
         
-        # Register OpenVINO provider
-        openvino_provider = OpenVINOProvider()
-        model_manager.register_provider("openvino", openvino_provider)
+        # Register Mistral OpenVINO provider
+        mistral_provider = MistralOpenVINOProvider()
+        model_manager.register_provider("mistral", mistral_provider)
         
         # Load default model from settings
         default_model = settings.model.name
         await model_manager.load_model(default_model)
         logger.info(f"✅ Model manager initialized with {default_model}")
+        
+        # Initialize tool registry
+        tool_registry = ToolRegistry()
+        
+        # Register web search tool
+        web_search_tool = EnhancedWebSearchTool()
+        tool_registry.register_tool("web_search", web_search_tool)
+        
+        # Register Gmail tool if available
+        try:
+            gmail_tool = GmailConnectorTool()
+            if gmail_tool.is_available():
+                tool_registry.register_tool("gmail_connector", gmail_tool)
+                logger.info("✅ Gmail connector available")
+        except Exception as e:
+            logger.warning(f"Gmail connector not available: {e}")
+        
+        logger.info(f"✅ Tool registry initialized with {len(tool_registry.get_available_tools())} tools")
+        
+        # Initialize chat agent orchestrator
+        chat_agent = ChatAgentOrchestrator(model_manager, conversation_manager, tool_registry)
+        await chat_agent.initialize({
+            "primary_model": default_model,
+            "tts_model": settings.voice.tts_model
+        })
+        logger.info("✅ Chat agent orchestrator initialized")
         
         # Hardware summary
         hardware = intel_optimizer.get_hardware_summary()
@@ -171,6 +204,9 @@ async def get_model_manager() -> ModelManager:
 
 async def get_conversation_manager() -> ConversationManager:
     return conversation_manager
+
+async def get_chat_agent() -> ChatAgentOrchestrator:
+    return chat_agent
 
 # Include API routes
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])

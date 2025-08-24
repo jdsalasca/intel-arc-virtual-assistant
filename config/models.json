@@ -1,0 +1,22 @@
+{
+  "models": {
+    "mistral-7b-instruct": {
+      "source": "mistralai/Mistral-7B-Instruct-v0.3",
+      "type": "llm",
+      "optimization": "openvino_int4",
+      "device": "AUTO",
+      "context_length": 8192,
+      "description": "Mistral-7B optimized for Intel hardware"
+    },
+    "speecht5-tts": {
+      "source": "microsoft/speecht5_tts",
+      "type": "tts",
+      "optimization": "openvino",
+      "device": "NPU",
+      "description": "SpeechT5 TTS optimized for Intel NPU"
+    }
+  },
+  "download_on_first_run": true,
+  "auto_optimization": true,
+  "quantization_default": "int4"
+}

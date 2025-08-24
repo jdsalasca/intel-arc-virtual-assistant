@@ -1,317 +1,319 @@
 /**
- * Intel Virtual Assistant - Main Application
- * Handles app initialization, state management, and core functionality
+ * Intel AI Assistant - Main Application
+ * Handles real-time chat, WebSocket communication, and UI interactions
  */
 
-class VirtualAssistant {
+class IntelAIAssistant {
     constructor() {
-        this.config = {
-            apiBase: '/api/v1',
-            model: 'qwen2.5-7b-int4',
-            voice: 'female_1',
-            temperature: 0.7,
-            maxTokens: 256,
-            voiceEnabled: true,
-            autoScroll: true
-        };
+        this.websocket = null;
+        this.clientId = this.generateClientId();
+        this.currentConversationId = null;
+        this.isConnected = false;
+        this.settings = this.loadSettings();
         
-        this.state = {
-            currentConversationId: null,
-            conversations: [],
-            isConnected: false,
-            isVoiceMode: false,
-            isRecording: false,
-            hardwareStatus: {
-                gpu: 'checking',
-                npu: 'checking',
-                model: 'loading'
-            }
-        };
-        
-        this.elements = {};
-        this.eventListeners = [];
-        
+        // Initialize application
         this.init();
     }
     
-    async init() {
-        try {
-            console.log('🚀 Initializing Intel Virtual Assistant...');
-            
-            // Initialize DOM elements
-            this.initElements();
-            
-            // Setup event listeners
-            this.setupEventListeners();
-            
-            // Load user settings
-            this.loadSettings();
-            
-            // Check server connection
-            await this.checkConnection();
-            
-            // Load hardware status
-            await this.loadHardwareStatus();
-            
-            // Load conversations
-            await this.loadConversations();
-            
-            // Initialize voice functionality
-            if (window.VoiceHandler) {
-                this.voiceHandler = new VoiceHandler(this);
-            }
-            
-            console.log('✅ Virtual Assistant initialized successfully');
-            
-        } catch (error) {
-            console.error('❌ Failed to initialize Virtual Assistant:', error);
-            this.showError('Failed to initialize application');
-        }
+    init() {
+        this.initializeElements();
+        this.bindEvents();
+        this.connectWebSocket();
+        this.loadStatus();
+        this.loadConversations();
+        
+        console.log('Intel AI Assistant initialized');
     }
     
-    initElements() {
-        // Cache frequently used DOM elements
-        this.elements = {
-            // Header elements
-            themeToggle: document.getElementById('theme-toggle'),
-            settingsBtn: document.getElementById('settings-btn'),
-            connectionStatus: document.getElementById('connection-status'),
-            
-            // Sidebar elements
-            newChatBtn: document.getElementById('new-chat-btn'),
-            conversationList: document.getElementById('conversation-list'),
-            
-            // Hardware status
-            gpuStatus: document.getElementById('gpu-status'),
-            npuStatus: document.getElementById('npu-status'),
-            activeModel: document.getElementById('active-model'),
-            
-            // Chat elements
-            chatTitle: document.getElementById('chat-title'),
-            chatMessages: document.getElementById('chat-messages'),
-            messageInput: document.getElementById('message-input'),
-            sendBtn: document.getElementById('send-btn'),
-            voiceBtn: document.getElementById('voice-btn'),
-            attachBtn: document.getElementById('attach-btn'),
-            
-            // Voice elements
-            voiceToggle: document.getElementById('voice-toggle'),
-            voiceRecording: document.getElementById('voice-recording'),
-            
-            // Model status
-            modelInfo: document.getElementById('model-info'),
-            typingIndicator: document.getElementById('typing-indicator'),
-            
-            // Settings modal
-            settingsModal: document.getElementById('settings-modal'),
-            settingsClose: document.getElementById('settings-close'),
-            modelSelect: document.getElementById('model-select'),
-            voiceSelect: document.getElementById('voice-select'),
-            temperatureSlider: document.getElementById('temperature-slider'),
-            temperatureValue: document.getElementById('temperature-value'),
-            maxTokensSlider: document.getElementById('max-tokens-slider'),
-            maxTokensValue: document.getElementById('max-tokens-value'),
-            voiceEnabledCheck: document.getElementById('voice-enabled'),
-            autoScrollCheck: document.getElementById('auto-scroll'),
-            settingsCancel: document.getElementById('settings-cancel'),
-            settingsSave: document.getElementById('settings-save')
-        };
+    initializeElements() {
+        // Core elements
+        this.messagesContainer = document.getElementById('messagesContainer');
+        this.messageInput = document.getElementById('messageInput');
+        this.sendBtn = document.getElementById('sendBtn');
+        this.statusIndicator = document.getElementById('statusIndicator');
+        this.typingIndicator = document.getElementById('typingIndicator');
+        
+        // Header elements
+        this.hardwareInfo = document.getElementById('hardwareInfo');
+        this.settingsBtn = document.getElementById('settingsBtn');
+        
+        // Sidebar elements
+        this.newChatBtn = document.getElementById('newChatBtn');
+        this.conversationsList = document.getElementById('conversationsList');
+        
+        // Controls
+        this.voiceToggle = document.getElementById('voiceToggle');
+        this.clearChatBtn = document.getElementById('clearChatBtn');
+        this.exportChatBtn = document.getElementById('exportChatBtn');
+        
+        // Settings modal
+        this.settingsModal = document.getElementById('settingsModal');
+        this.temperatureSlider = document.getElementById('temperatureSlider');
+        this.maxTokensSlider = document.getElementById('maxTokensSlider');
+        this.streamingToggle = document.getElementById('streamingToggle');
+        
+        // Quick actions
+        this.quickActionBtns = document.querySelectorAll('.quick-btn');
+        
+        // Character count
+        this.charCount = document.getElementById('charCount');
     }
     
-    setupEventListeners() {
-        // Theme toggle
-        this.elements.themeToggle?.addEventListener('click', () => this.toggleTheme());
-        
-        // Settings
-        this.elements.settingsBtn?.addEventListener('click', () => this.openSettings());
-        this.elements.settingsClose?.addEventListener('click', () => this.closeSettings());
-        this.elements.settingsCancel?.addEventListener('click', () => this.closeSettings());
-        this.elements.settingsSave?.addEventListener('click', () => this.saveSettings());
-        
-        // New chat
-        this.elements.newChatBtn?.addEventListener('click', () => this.createNewChat());
-        
+    bindEvents() {
         // Message input
-        this.elements.messageInput?.addEventListener('input', () => this.handleInputChange());
-        this.elements.messageInput?.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        this.messageInput.addEventListener('input', () => this.handleInputChange());
+        this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
         
         // Send button
-        this.elements.sendBtn?.addEventListener('click', () => this.sendMessage());
+        this.sendBtn.addEventListener('click', () => this.sendMessage());
         
-        // Voice button
-        this.elements.voiceBtn?.addEventListener('click', () => this.toggleVoiceInput());
-        this.elements.voiceToggle?.addEventListener('click', () => this.toggleVoiceMode());
+        // New chat
+        this.newChatBtn.addEventListener('click', () => this.startNewChat());
+        
+        // Clear chat
+        this.clearChatBtn.addEventListener('click', () => this.clearCurrentChat());
+        
+        // Settings
+        this.settingsBtn.addEventListener('click', () => this.openSettings());
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => this.closeSettings());
+        document.getElementById('saveSettingsBtn').addEventListener('click', () => this.saveSettings());
         
         // Settings sliders
-        this.elements.temperatureSlider?.addEventListener('input', (e) => {
-            this.elements.temperatureValue.textContent = e.target.value;
+        this.temperatureSlider.addEventListener('input', (e) => {
+            document.getElementById('temperatureValue').textContent = e.target.value;
         });
         
-        this.elements.maxTokensSlider?.addEventListener('input', (e) => {
-            this.elements.maxTokensValue.textContent = e.target.value;
+        this.maxTokensSlider.addEventListener('input', (e) => {
+            document.getElementById('maxTokensValue').textContent = e.target.value;
         });
         
-        // Click outside modal to close
-        this.elements.settingsModal?.addEventListener('click', (e) => {
-            if (e.target === this.elements.settingsModal) {
-                this.closeSettings();
-            }
+        // Quick actions
+        this.quickActionBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.handleQuickAction(btn.dataset.action));
         });
+        
+        // Window events
+        window.addEventListener('beforeunload', () => this.cleanup());
         
         // Auto-resize textarea
-        if (this.elements.messageInput) {
-            this.elements.messageInput.addEventListener('input', this.autoResizeTextarea.bind(this));
-        }
+        this.messageInput.addEventListener('input', () => this.autoResizeTextarea());
     }
     
-    async checkConnection() {
+    connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/api/v1/chat/ws/${this.clientId}`;
+        
         try {
-            const response = await fetch(`${this.config.apiBase}/health/status`);
-            if (response.ok) {
-                this.state.isConnected = true;
-                this.updateConnectionStatus('Connected', 'online');
-            } else {
-                throw new Error('Server responded with error');
-            }
-        } catch (error) {
-            this.state.isConnected = false;
-            this.updateConnectionStatus('Disconnected', 'offline');
-            console.error('Connection check failed:', error);
-        }
-    }
-    
-    async loadHardwareStatus() {
-        try {
-            const response = await fetch(`${this.config.apiBase}/health/hardware`);
-            if (response.ok) {
-                const hardware = await response.json();
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onopen = () => {
+                console.log('WebSocket connected');
+                this.isConnected = true;
+                this.updateStatus('ready', 'Connected');
                 
-                // Update GPU status
-                const gpuAvailable = hardware.arc_gpu?.available;
-                this.updateHardwareStatus('gpu', gpuAvailable ? 'Available' : 'Not Available', 
-                                        gpuAvailable ? 'online' : 'offline');
-                
-                // Update NPU status
-                const npuAvailable = hardware.npu?.available;
-                this.updateHardwareStatus('npu', npuAvailable ? 'Available' : 'Not Available',
-                                        npuAvailable ? 'online' : 'offline');
-                
-                // Update active model
-                this.updateHardwareStatus('model', this.config.model, 'online');
-                
-                this.state.hardwareStatus = {
-                    gpu: gpuAvailable ? 'online' : 'offline',
-                    npu: npuAvailable ? 'online' : 'offline',
-                    model: 'online'
-                };
-            }
-        } catch (error) {
-            console.error('Failed to load hardware status:', error);
-            this.updateHardwareStatus('gpu', 'Unknown', 'offline');
-            this.updateHardwareStatus('npu', 'Unknown', 'offline');
-            this.updateHardwareStatus('model', 'Error', 'offline');
-        }
-    }
-    
-    async loadConversations() {
-        try {
-            // For now, we'll create a mock conversation list
-            // In a real implementation, this would fetch from the API
-            this.state.conversations = [
-                {
-                    id: 'conv1',
-                    title: 'Welcome Conversation',
-                    preview: 'Getting started with the assistant...',
-                    timestamp: new Date().toISOString()
+                // Join current conversation if exists
+                if (this.currentConversationId) {
+                    this.joinConversation(this.currentConversationId);
                 }
-            ];
+            };
             
-            this.renderConversations();
-        } catch (error) {
-            console.error('Failed to load conversations:', error);
-        }
-    }
-    
-    renderConversations() {
-        if (!this.elements.conversationList) return;
-        
-        const conversationsHtml = this.state.conversations.map(conv => `
-            <div class="conversation-item ${conv.id === this.state.currentConversationId ? 'active' : ''}" 
-                 onclick="app.selectConversation('${conv.id}')">
-                <div class="conversation-title">${conv.title}</div>
-                <div class="conversation-preview">${conv.preview}</div>
-                <div class="conversation-time">${this.formatTime(conv.timestamp)}</div>
-            </div>
-        `).join('');
-        
-        this.elements.conversationList.innerHTML = conversationsHtml;
-    }
-    
-    selectConversation(conversationId) {
-        this.state.currentConversationId = conversationId;
-        const conversation = this.state.conversations.find(c => c.id === conversationId);
-        
-        if (conversation) {
-            this.elements.chatTitle.textContent = conversation.title;
-            this.renderConversations(); // Re-render to update active state
-            this.loadConversationMessages(conversationId);
-        }
-    }
-    
-    async loadConversationMessages(conversationId) {
-        try {
-            // Clear current messages
-            this.clearMessages();
+            this.websocket.onmessage = (event) => {
+                this.handleWebSocketMessage(JSON.parse(event.data));
+            };
             
-            // For now, show welcome message for new conversations
-            if (conversationId === 'conv1') {
-                // Welcome message is already in HTML
-                return;
-            }
+            this.websocket.onclose = () => {
+                console.log('WebSocket disconnected');
+                this.isConnected = false;
+                this.updateStatus('disconnected', 'Disconnected');
+                
+                // Attempt to reconnect after delay
+                setTimeout(() => this.connectWebSocket(), 3000);
+            };
             
-            // In a real implementation, load messages from API
-            // const response = await fetch(`${this.config.apiBase}/chat/conversations/${conversationId}/messages`);
-            // const messages = await response.json();
-            // this.renderMessages(messages);
+            this.websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                this.updateStatus('error', 'Connection Error');
+            };
             
         } catch (error) {
-            console.error('Failed to load conversation messages:', error);
+            console.error('Failed to connect WebSocket:', error);
+            this.updateStatus('error', 'Failed to Connect');
         }
     }
     
-    createNewChat() {
-        const newConversation = {
-            id: `conv_${Date.now()}`,
-            title: 'New Conversation',
-            preview: 'Start a new conversation...',
-            timestamp: new Date().toISOString()
+    handleWebSocketMessage(data) {
+        switch (data.type) {
+            case 'response_chunk':
+                this.handleResponseChunk(data);
+                break;
+                
+            case 'response_complete':
+                this.handleResponseComplete(data);
+                break;
+                
+            case 'message_received':
+                this.hideTypingIndicator();
+                this.showTypingIndicator();
+                break;
+                
+            case 'error':
+                this.handleError(data.error);
+                break;
+                
+            case 'pong':
+                // Heartbeat response
+                break;
+                
+            default:
+                console.log('Unknown message type:', data.type);
+        }
+    }
+    
+    sendMessage() {
+        const content = this.messageInput.value.trim();
+        if (!content || !this.isConnected) return;
+        
+        // Add user message to UI
+        this.addMessage('user', content);
+        
+        // Clear input
+        this.messageInput.value = '';
+        this.handleInputChange();
+        
+        // Send via WebSocket
+        const message = {
+            type: 'message',
+            content: content,
+            conversation_id: this.currentConversationId,
+            temperature: parseFloat(this.temperatureSlider.value),
+            max_tokens: parseInt(this.maxTokensSlider.value)
         };
         
-        this.state.conversations.unshift(newConversation);
-        this.selectConversation(newConversation.id);
-        this.clearMessages();
-        
-        // Focus on input
-        this.elements.messageInput?.focus();
+        this.websocket.send(JSON.stringify(message));
     }
     
-    clearMessages() {
-        if (this.elements.chatMessages) {
-            this.elements.chatMessages.innerHTML = `
-                <div class="welcome-message">
-                    <div class="welcome-icon">🤖</div>
-                    <h3>New Conversation Started</h3>
-                    <p>I'm ready to help! What would you like to discuss?</p>
-                </div>
-            `;
+    addMessage(role, content, options = {}) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${role}`;
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.innerHTML = role === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        
+        if (options.isStreaming) {
+            messageContent.innerHTML = '<span class="cursor">|</span>';
+            messageDiv.dataset.streaming = 'true';
+        } else {
+            messageContent.textContent = content;
         }
+        
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(messageContent);
+        
+        // Remove welcome message if present
+        const welcomeMessage = this.messagesContainer.querySelector('.welcome-message');
+        if (welcomeMessage) {
+            welcomeMessage.remove();
+        }
+        
+        this.messagesContainer.appendChild(messageDiv);
+        this.scrollToBottom();
+        
+        return messageDiv;
+    }
+    
+    handleResponseChunk(data) {
+        let assistantMessage = this.messagesContainer.querySelector('.message.assistant[data-streaming="true"]');
+        
+        if (!assistantMessage) {
+            assistantMessage = this.addMessage('assistant', '', { isStreaming: true });
+        }
+        
+        const messageContent = assistantMessage.querySelector('.message-content');
+        
+        if (data.is_partial) {
+            // Append chunk to existing content
+            const currentText = messageContent.textContent.replace('|', '');
+            messageContent.innerHTML = this.formatMessage(currentText + data.content) + '<span class="cursor">|</span>';
+        }
+        
+        this.scrollToBottom();
+    }
+    
+    handleResponseComplete(data) {
+        const assistantMessage = this.messagesContainer.querySelector('.message.assistant[data-streaming="true"]');
+        
+        if (assistantMessage) {
+            const messageContent = assistantMessage.querySelector('.message-content');
+            const finalText = messageContent.textContent.replace('|', '');
+            messageContent.innerHTML = this.formatMessage(finalText);
+            
+            assistantMessage.removeAttribute('data-streaming');
+        }
+        
+        this.hideTypingIndicator();
+        
+        // Update conversation ID
+        if (data.conversation_id) {
+            this.currentConversationId = data.conversation_id;
+        }
+        
+        // Show tool usage if any
+        if (data.tools_used && data.tools_used.length > 0) {
+            this.showToolUsage(data.tools_used);
+        }
+    }
+    
+    formatMessage(text) {
+        // Basic markdown-like formatting
+        text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        text = text.replace(/`(.*?)`/g, '<code>$1</code>');
+        text = text.replace(/\n/g, '<br>');
+        
+        // Format URLs
+        text = text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+        
+        return text;
+    }
+    
+    showTypingIndicator() {
+        this.typingIndicator.style.display = 'flex';
+        this.scrollToBottom();
+    }
+    
+    hideTypingIndicator() {
+        this.typingIndicator.style.display = 'none';
+    }
+    
+    showToolUsage(tools) {
+        const toolsText = tools.join(', ');
+        const toolMessage = document.createElement('div');
+        toolMessage.className = 'tool-usage';
+        toolMessage.innerHTML = `<i class="fas fa-tools"></i> Used tools: ${toolsText}`;
+        this.messagesContainer.appendChild(toolMessage);
     }
     
     handleInputChange() {
-        const hasText = this.elements.messageInput?.value.trim().length > 0;
-        if (this.elements.sendBtn) {
-            this.elements.sendBtn.disabled = !hasText;
-        }
+        const content = this.messageInput.value;
+        const charCount = content.length;
+        
+        // Update character count
+        this.charCount.textContent = charCount;
+        
+        // Enable/disable send button
+        this.sendBtn.disabled = !content.trim() || !this.isConnected;
+        
+        // Auto-resize
+        this.autoResizeTextarea();
+    }
+    
+    autoResizeTextarea() {
+        this.messageInput.style.height = 'auto';
+        this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
     }
     
     handleKeyDown(event) {
@@ -321,317 +323,242 @@ class VirtualAssistant {
         }
     }
     
-    async sendMessage() {
-        const message = this.elements.messageInput?.value.trim();
-        if (!message) return;
+    handleQuickAction(action) {
+        const actions = {
+            'web-search': 'Search the web for ',
+            'check-email': 'Check my recent emails'
+        };
         
-        try {
-            // Clear input
-            this.elements.messageInput.value = '';
-            this.handleInputChange();
-            this.autoResizeTextarea();
-            
-            // Add user message to chat
-            this.addMessage('user', message);
-            
-            // Show typing indicator
-            this.showTypingIndicator();
-            
-            // Send to API
-            const response = await fetch(`${this.config.apiBase}/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: this.config.model,
-                    messages: [{ role: 'user', content: message }],
-                    temperature: this.config.temperature,
-                    max_tokens: this.config.maxTokens
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                const assistantMessage = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
-                
-                // Add assistant message
-                this.addMessage('assistant', assistantMessage);
-                
-                // Text-to-speech if enabled
-                if (this.config.voiceEnabled && this.voiceHandler) {
-                    this.voiceHandler.speak(assistantMessage);
-                }
-            } else {
-                throw new Error(`API error: ${response.status}`);
+        if (actions[action]) {
+            this.messageInput.value = actions[action];
+            this.messageInput.focus();
+            if (action === 'web-search') {
+                // Position cursor after "Search the web for "
+                this.messageInput.setSelectionRange(actions[action].length, actions[action].length);
             }
-            
-        } catch (error) {
-            console.error('Failed to send message:', error);
-            this.addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
-        } finally {
-            this.hideTypingIndicator();
-        }
-    }
-    
-    addMessage(role, content) {
-        if (!this.elements.chatMessages) return;
-        
-        // Remove welcome message if it exists
-        const welcomeMsg = this.elements.chatMessages.querySelector('.welcome-message');
-        if (welcomeMsg) {
-            welcomeMsg.remove();
-        }
-        
-        const messageId = `msg_${Date.now()}`;
-        const timestamp = new Date().toLocaleTimeString();
-        const avatar = role === 'user' ? '👤' : '🤖';
-        
-        const messageHtml = `
-            <div class="message ${role}" id="${messageId}">
-                <div class="message-avatar">${avatar}</div>
-                <div class="message-bubble">
-                    <div class="message-content">
-                        <p>${this.formatMessageContent(content)}</p>
-                    </div>
-                    <div class="message-meta">
-                        <span class="message-time">${timestamp}</span>
-                        <div class="message-actions">
-                            <button class="message-action" onclick="app.copyMessage('${messageId}')" title="Copy">📋</button>
-                            ${role === 'assistant' ? `<button class="message-action" onclick="app.speakMessage('${messageId}')" title="Speak">🔊</button>` : ''}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        this.elements.chatMessages.insertAdjacentHTML('beforeend', messageHtml);
-        
-        // Auto-scroll if enabled
-        if (this.config.autoScroll) {
-            this.scrollToBottom();
-        }
-    }
-    
-    formatMessageContent(content) {
-        // Basic markdown-like formatting
-        return content
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`(.*?)`/g, '<code>$1</code>')
-            .replace(/\n/g, '<br>');
-    }
-    
-    copyMessage(messageId) {
-        const message = document.getElementById(messageId);
-        if (message) {
-            const content = message.querySelector('.message-content p').textContent;
-            navigator.clipboard.writeText(content).then(() => {
-                this.showToast('Message copied to clipboard');
-            });
-        }
-    }
-    
-    speakMessage(messageId) {
-        const message = document.getElementById(messageId);
-        if (message && this.voiceHandler) {
-            const content = message.querySelector('.message-content p').textContent;
-            this.voiceHandler.speak(content);
-        }
-    }
-    
-    showTypingIndicator() {
-        if (this.elements.typingIndicator) {
-            this.elements.typingIndicator.style.display = 'flex';
-        }
-    }
-    
-    hideTypingIndicator() {
-        if (this.elements.typingIndicator) {
-            this.elements.typingIndicator.style.display = 'none';
+            this.handleInputChange();
         }
     }
     
     scrollToBottom() {
-        if (this.elements.chatMessages) {
-            this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-        }
+        requestAnimationFrame(() => {
+            this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+        });
     }
     
-    autoResizeTextarea() {
-        const textarea = this.elements.messageInput;
-        if (textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-        }
+    startNewChat() {
+        this.currentConversationId = null;
+        this.messagesContainer.innerHTML = `
+            <div class="welcome-message">
+                <div class="welcome-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h3>New Conversation</h3>
+                <p>Start a new conversation with your Intel AI Assistant!</p>
+            </div>
+        `;
+        this.loadConversations(); // Refresh sidebar
     }
     
-    toggleTheme() {
-        document.body.classList.toggle('dark-theme');
-        const isDark = document.body.classList.contains('dark-theme');
-        
-        if (this.elements.themeToggle) {
-            this.elements.themeToggle.textContent = isDark ? '☀️' : '🌙';
-        }
-        
-        // Save theme preference
-        localStorage.setItem('theme', isDark ? 'dark' : 'light');
-    }
-    
-    toggleVoiceMode() {
-        this.state.isVoiceMode = !this.state.isVoiceMode;
-        
-        if (this.elements.voiceToggle) {
-            this.elements.voiceToggle.classList.toggle('active', this.state.isVoiceMode);
-        }
-        
-        this.showToast(this.state.isVoiceMode ? 'Voice mode enabled' : 'Voice mode disabled');
-    }
-    
-    toggleVoiceInput() {
-        if (this.voiceHandler) {
-            if (this.state.isRecording) {
-                this.voiceHandler.stopRecording();
-            } else {
-                this.voiceHandler.startRecording();
+    clearCurrentChat() {
+        if (this.currentConversationId) {
+            if (confirm('Are you sure you want to clear this conversation?')) {
+                fetch(`/api/v1/chat/conversations/${this.currentConversationId}/clear`, {
+                    method: 'POST'
+                })
+                .then(() => this.startNewChat())
+                .catch(error => console.error('Failed to clear chat:', error));
             }
+        } else {
+            this.startNewChat();
         }
     }
     
-    updateConnectionStatus(text, status) {
-        if (this.elements.connectionStatus) {
-            const statusText = this.elements.connectionStatus.querySelector('.status-text');
-            const statusDot = this.elements.connectionStatus.querySelector('.status-dot');
+    joinConversation(conversationId) {
+        if (this.websocket && this.isConnected) {
+            const message = {
+                type: 'join_conversation',
+                conversation_id: conversationId
+            };
+            this.websocket.send(JSON.stringify(message));
+        }
+    }
+    
+    loadStatus() {
+        fetch('/api/v1/chat/status')
+            .then(response => response.json())
+            .then(data => {
+                this.updateStatus(data.status, `${data.agent_name} v${data.version}`);
+                
+                // Update hardware info
+                if (data.capabilities && data.capabilities.hardware_requirements) {
+                    const hw = data.capabilities.hardware_requirements;
+                    document.getElementById('hardwareText').textContent = 
+                        `Intel Core Ultra 7 (${hw.intel_optimization ? 'Optimized' : 'Standard'})`;
+                }
+                
+                // Update tools list
+                this.updateToolsList(data.available_tools || []);
+            })
+            .catch(error => {
+                console.error('Failed to load status:', error);
+                this.updateStatus('error', 'Status Unknown');
+            });
+    }
+    
+    updateStatus(status, text) {
+        const statusDot = this.statusIndicator.querySelector('.status-dot');
+        const statusText = this.statusIndicator.querySelector('.status-text');
+        
+        // Update status dot color
+        const colors = {
+            'ready': 'var(--success)',
+            'initializing': 'var(--warning)', 
+            'disconnected': 'var(--text-muted)',
+            'error': 'var(--error)'
+        };
+        
+        statusDot.style.background = colors[status] || colors.error;
+        statusText.textContent = text;
+    }
+    
+    updateToolsList(tools) {
+        const toolsList = document.getElementById('toolsList');
+        toolsList.innerHTML = '';
+        
+        tools.forEach(tool => {
+            const toolItem = document.createElement('div');
+            toolItem.className = 'tool-item';
+            toolItem.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <span>${this.formatToolName(tool)}</span>
+            `;
+            toolsList.appendChild(toolItem);
+        });
+    }
+    
+    formatToolName(tool) {
+        return tool.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+    
+    loadConversations() {
+        fetch('/api/v1/chat/conversations')
+            .then(response => response.json())
+            .then(conversations => {
+                this.updateConversationsList(conversations);
+            })
+            .catch(error => {
+                console.error('Failed to load conversations:', error);
+            });
+    }
+    
+    updateConversationsList(conversations) {
+        this.conversationsList.innerHTML = '';
+        
+        conversations.slice(0, 10).forEach(conv => {
+            const convItem = document.createElement('div');
+            convItem.className = 'conversation-item';
+            convItem.innerHTML = `
+                <div class="conversation-title">
+                    Chat ${conv.conversation_id.slice(-8)}
+                </div>
+                <div class="conversation-meta">
+                    ${conv.message_count} messages • ${this.formatDate(conv.last_activity)}
+                </div>
+            `;
             
-            if (statusText) statusText.textContent = text;
-            if (statusDot) {
-                statusDot.className = `status-dot ${status}`;
-            }
-        }
+            convItem.addEventListener('click', () => {
+                this.loadConversation(conv.conversation_id);
+            });
+            
+            this.conversationsList.appendChild(convItem);
+        });
     }
     
-    updateHardwareStatus(type, text, status) {
-        const element = this.elements[`${type}Status`];
-        if (element) {
-            element.textContent = text;
-            element.className = `hw-status ${status}`;
-        }
+    loadConversation(conversationId) {
+        fetch(`/api/v1/chat/conversations/${conversationId}/history`)
+            .then(response => response.json())
+            .then(data => {
+                this.currentConversationId = conversationId;
+                this.messagesContainer.innerHTML = '';
+                
+                data.messages.forEach(msg => {
+                    this.addMessage(msg.role, msg.content);
+                });
+                
+                this.joinConversation(conversationId);
+            })
+            .catch(error => {
+                console.error('Failed to load conversation:', error);
+            });
     }
     
     openSettings() {
-        if (this.elements.settingsModal) {
-            this.elements.settingsModal.classList.add('show');
-            this.loadSettingsValues();
-        }
+        // Load current settings
+        this.temperatureSlider.value = this.settings.temperature;
+        this.maxTokensSlider.value = this.settings.maxTokens;
+        this.streamingToggle.checked = this.settings.streaming;
+        
+        document.getElementById('temperatureValue').textContent = this.settings.temperature;
+        document.getElementById('maxTokensValue').textContent = this.settings.maxTokens;
+        
+        this.settingsModal.style.display = 'flex';
     }
     
     closeSettings() {
-        if (this.elements.settingsModal) {
-            this.elements.settingsModal.classList.remove('show');
-        }
-    }
-    
-    loadSettingsValues() {
-        if (this.elements.modelSelect) this.elements.modelSelect.value = this.config.model;
-        if (this.elements.voiceSelect) this.elements.voiceSelect.value = this.config.voice;
-        if (this.elements.temperatureSlider) {
-            this.elements.temperatureSlider.value = this.config.temperature;
-            this.elements.temperatureValue.textContent = this.config.temperature;
-        }
-        if (this.elements.maxTokensSlider) {
-            this.elements.maxTokensSlider.value = this.config.maxTokens;
-            this.elements.maxTokensValue.textContent = this.config.maxTokens;
-        }
-        if (this.elements.voiceEnabledCheck) this.elements.voiceEnabledCheck.checked = this.config.voiceEnabled;
-        if (this.elements.autoScrollCheck) this.elements.autoScrollCheck.checked = this.config.autoScroll;
+        this.settingsModal.style.display = 'none';
     }
     
     saveSettings() {
-        // Update config from form values
-        if (this.elements.modelSelect) this.config.model = this.elements.modelSelect.value;
-        if (this.elements.voiceSelect) this.config.voice = this.elements.voiceSelect.value;
-        if (this.elements.temperatureSlider) this.config.temperature = parseFloat(this.elements.temperatureSlider.value);
-        if (this.elements.maxTokensSlider) this.config.maxTokens = parseInt(this.elements.maxTokensSlider.value);
-        if (this.elements.voiceEnabledCheck) this.config.voiceEnabled = this.elements.voiceEnabledCheck.checked;
-        if (this.elements.autoScrollCheck) this.config.autoScroll = this.elements.autoScrollCheck.checked;
+        this.settings = {
+            temperature: parseFloat(this.temperatureSlider.value),
+            maxTokens: parseInt(this.maxTokensSlider.value),
+            streaming: this.streamingToggle.checked,
+            sounds: document.getElementById('soundsToggle').checked,
+            autoSave: document.getElementById('autoSaveToggle').checked
+        };
         
-        // Update model info display
-        this.updateModelInfo();
-        
-        // Save to localStorage
-        this.saveSettingsToStorage();
-        
+        localStorage.setItem('intel-ai-settings', JSON.stringify(this.settings));
         this.closeSettings();
-        this.showToast('Settings saved successfully');
-    }
-    
-    updateModelInfo() {
-        if (this.elements.modelInfo) {
-            const deviceType = this.state.hardwareStatus.gpu === 'online' ? 'Arc GPU' : 'CPU';
-            this.elements.modelInfo.textContent = `${this.config.model} (${deviceType})`;
-        }
+        
+        this.showNotification('Settings saved successfully', 'success');
     }
     
     loadSettings() {
+        const defaultSettings = {
+            temperature: 0.7,
+            maxTokens: 256,
+            streaming: true,
+            sounds: true,
+            autoSave: true
+        };
+        
         try {
-            const saved = localStorage.getItem('assistantSettings');
-            if (saved) {
-                const settings = JSON.parse(saved);
-                Object.assign(this.config, settings);
-            }
-            
-            // Load theme
-            const theme = localStorage.getItem('theme') || 'dark';
-            if (theme === 'light') {
-                document.body.classList.remove('dark-theme');
-                if (this.elements.themeToggle) this.elements.themeToggle.textContent = '🌙';
-            }
-            
-        } catch (error) {
-            console.error('Failed to load settings:', error);
+            const saved = localStorage.getItem('intel-ai-settings');
+            return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+        } catch {
+            return defaultSettings;
         }
     }
     
-    saveSettingsToStorage() {
-        try {
-            localStorage.setItem('assistantSettings', JSON.stringify(this.config));
-        } catch (error) {
-            console.error('Failed to save settings:', error);
-        }
-    }
-    
-    showToast(message, type = 'info') {
-        // Simple toast notification
+    showNotification(message, type = 'info') {
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.textContent = message;
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--accent-primary);
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 0.5rem;
-            box-shadow: var(--shadow);
-            z-index: 2000;
-            animation: slideInRight 0.3s ease;
-        `;
         
-        document.body.appendChild(toast);
+        document.getElementById('toastContainer').appendChild(toast);
         
-        setTimeout(() => {
-            toast.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        setTimeout(() => toast.remove(), 3000);
     }
     
-    showError(message) {
-        this.showToast(message, 'error');
+    handleError(error) {
+        console.error('AI Assistant Error:', error);
+        this.showNotification(`Error: ${error}`, 'error');
+        this.hideTypingIndicator();
     }
     
-    formatTime(timestamp) {
-        const date = new Date(timestamp);
+    formatDate(dateStr) {
+        const date = new Date(dateStr);
         const now = new Date();
         const diff = now - date;
         
@@ -640,24 +567,19 @@ class VirtualAssistant {
         if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
         return date.toLocaleDateString();
     }
-}
-
-// Initialize the application when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new VirtualAssistant();
-});
-
-// Add CSS animations for toasts
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+    
+    generateClientId() {
+        return 'client_' + Math.random().toString(36).substring(2, 15);
     }
     
-    @keyframes slideOutRight {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
+    cleanup() {
+        if (this.websocket) {
+            this.websocket.close();
+        }
     }
-`;
-document.head.appendChild(style);
+}
+
+// Initialize application when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.aiAssistant = new IntelAIAssistant();
+});
