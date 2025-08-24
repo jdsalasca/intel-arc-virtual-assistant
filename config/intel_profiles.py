@@ -410,7 +410,11 @@ class IntelProfileManager:
             has_arc_gpu = hardware_info.get("arc_gpu", {}).get("available", False)
             has_npu = hardware_info.get("npu", {}).get("available", False)
             cpu_cores = hardware_info.get("cpu", {}).get("threads", 8)
-            
+
+            # If no accelerators are available, default to CPU-only
+            if not has_arc_gpu and not has_npu:
+                return "cpu_only"
+
             # Determine best profile
             if has_arc_gpu and has_npu:
                 # Check GPU type based on memory or compute units
@@ -423,10 +427,13 @@ class IntelProfileManager:
                     return "ultra7_arc750_npu"  # Default Arc profile
             elif has_arc_gpu:
                 return "ultra7_arc750_npu"  # Arc without NPU
+            elif has_npu:
+                # Currently there is no dedicated NPU-only profile
+                return "cpu_only"
             elif cpu_cores >= 12:
-                return "i7_irisxe"  # High-end CPU
+                return "i7_irisxe"  # High-end CPU with integrated graphics
             elif cpu_cores >= 6:
-                return "i5_uhd"  # Mid-range CPU
+                return "i5_uhd"  # Mid-range CPU with integrated graphics
             else:
                 return "cpu_only"  # Fallback
                 
