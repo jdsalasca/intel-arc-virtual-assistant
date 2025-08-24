@@ -1,0 +1,232 @@
+# Intel AI Assistant - Docker Compose Configuration
+# Supports multiple deployment scenarios with Intel hardware optimization
+
+version: '3.8'
+
+# Base service configuration
+x-common-config: &common-config
+  build:
+    context: ..
+    dockerfile: deployment/Dockerfile
+  environment:
+    - PYTHONUNBUFFERED=1
+    - LOG_LEVEL=INFO
+    - MODEL_CACHE_DIR=/app/models
+    - OPENVINO_CACHE_DIR=/app/cache
+    - CONVERSATIONS_DIR=/app/data/conversations
+  volumes:
+    - ../models:/app/models
+    - ../cache:/app/cache
+    - ../data:/app/data
+    - ../logs:/app/logs
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 40s
+
+services:
+  # Development service
+  intel-ai-dev:
+    <<: *common-config
+    build:
+      target: development
+    ports:
+      - "8000:8000"
+      - "8888:8888"  # Jupyter notebook
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - AUTO_RELOAD=true
+    volumes:
+      - ..:/app
+      - ../models:/app/models
+      - ../cache:/app/cache
+      - ../data:/app/data
+      - ../logs:/app/logs
+    command: ["python", "main.py", "--reload"]
+    profiles:
+      - dev
+
+  # CPU-only production service
+  intel-ai-cpu:
+    <<: *common-config
+    build:
+      target: production
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - OPENVINO_DEVICE=CPU
+      - INTEL_PROFILE=cpu_only
+    profiles:
+      - cpu
+      - production
+
+  # Intel GPU-enabled service
+  intel-ai-gpu:
+    <<: *common-config
+    build:
+      target: intel-gpu
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - OPENVINO_DEVICE=GPU
+      - INTEL_ARC_GPU_AVAILABLE=true
+      - INTEL_PROFILE=ultra7_arc770_npu
+    devices:
+      - /dev/dri:/dev/dri  # Intel GPU access
+    group_add:
+      - render  # GPU render group
+    profiles:
+      - gpu
+      - production
+
+  # Intel NPU-enabled service
+  intel-ai-npu:
+    <<: *common-config
+    build:
+      target: intel-npu
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - INTEL_NPU_AVAILABLE=true
+      - INTEL_PROFILE=ultra7_arc750_npu
+    devices:
+      - /dev/accel:/dev/accel  # Intel NPU access
+    profiles:
+      - npu
+      - production
+
+  # Full Intel hardware support
+  intel-ai-full:
+    <<: *common-config
+    build:
+      target: intel-full
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - OPENVINO_DEVICE=AUTO
+      - INTEL_ARC_GPU_AVAILABLE=true
+      - INTEL_NPU_AVAILABLE=true
+      - AUTO_DETECT_HARDWARE=true
+      - INTEL_PROFILE=ultra7_arc770_npu
+    devices:
+      - /dev/dri:/dev/dri      # Intel GPU access
+      - /dev/accel:/dev/accel  # Intel NPU access
+    group_add:
+      - render
+    profiles:
+      - full
+      - production
+
+  # Load balancer for high availability
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - intel-ai-full
+    profiles:
+      - production
+      - ha
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    profiles:
+      - production
+      - ha
+
+  # PostgreSQL for conversation storage
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=intel_ai_assistant
+      - POSTGRES_USER=ai_user
+      - POSTGRES_PASSWORD=ai_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    ports:
+      - "5432:5432"
+    profiles:
+      - production
+      - ha
+
+  # Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    profiles:
+      - monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    profiles:
+      - monitoring
+
+  # Testing service
+  intel-ai-test:
+    <<: *common-config
+    build:
+      target: development
+    environment:
+      - ENVIRONMENT=testing
+      - TEST_MODE=true
+    volumes:
+      - ..:/app
+    command: ["python", "run_tests.py", "--all"]
+    profiles:
+      - test
+
+# Named volumes for persistent data
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+# Networks for service isolation
+networks:
+  default:
+    driver: bridge
+  intel-ai-network:
+    driver: bridge
+    internal: false

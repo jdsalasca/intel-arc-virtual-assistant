@@ -1,0 +1,80 @@
+# Prometheus Configuration for Intel AI Assistant Monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'intel-ai-assistant'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "alerts.yml"
+
+# Scrape configuration
+scrape_configs:
+  # Intel AI Assistant application metrics
+  - job_name: 'intel-ai-assistant'
+    static_configs:
+      - targets: ['intel-ai-full:9000']
+    scrape_interval: 10s
+    metrics_path: '/api/v1/metrics'
+    scrape_timeout: 5s
+
+  # Nginx metrics
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:8080']
+    metrics_path: '/nginx_status'
+    scrape_interval: 30s
+
+  # Redis metrics (if enabled)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+
+  # PostgreSQL metrics (if enabled)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+
+  # Docker container metrics
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker-host:9323']
+    scrape_interval: 30s
+
+  # Node exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # Intel GPU metrics (if available)
+  - job_name: 'intel-gpu'
+    static_configs:
+      - targets: ['intel-gpu-exporter:9101']
+    scrape_interval: 15s
+
+  # Intel NPU metrics (if available)
+  - job_name: 'intel-npu'
+    static_configs:
+      - targets: ['intel-npu-exporter:9102']
+    scrape_interval: 15s
+
+  # Custom Intel AI metrics
+  - job_name: 'intel-ai-custom'
+    static_configs:
+      - targets: ['intel-ai-full:9000']
+    metrics_path: '/api/v1/metrics/intel'
+    scrape_interval: 15s
+    params:
+      format: ['prometheus']

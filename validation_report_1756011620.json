@@ -1,0 +1,74 @@
+{
+  "timestamp": "2025-08-24 00:00:20",
+  "python_version": "3.13.6 (tags/v3.13.6:4e66535, Aug  6 2025, 14:36:00) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "win32",
+  "project_root": "C:\\Users\\jdsal\\Documents\\Programming-personal\\wiwin",
+  "summary": {
+    "total_checks": 8,
+    "passed_checks": 7,
+    "overall_valid": false
+  },
+  "validation_results": {
+    "python_version": {
+      "valid": true,
+      "current": [
+        3,
+        13
+      ],
+      "required": [
+        3,
+        8
+      ]
+    },
+    "project_structure": {
+      "valid": true
+    },
+    "dependencies": {
+      "core_missing": [],
+      "test_missing": [],
+      "optional_missing": [
+        "openvino_genai",
+        "langchain",
+        "transformers"
+      ]
+    },
+    "configuration_system": {
+      "valid": true,
+      "profiles_count": 5,
+      "env_validation": {
+        "valid": false,
+        "warnings": [
+          "MKL_NUM_THREADS not set - using auto detection",
+          "OpenAI API key not configured",
+          "HuggingFace token not configured"
+        ],
+        "errors": [
+          "OpenVINO not installed"
+        ],
+        "info": []
+      },
+      "settings_issues": []
+    },
+    "api_system": {
+      "valid": true
+    },
+    "test_system": {
+      "valid": true,
+      "pytest_ini_exists": true,
+      "conftest_exists": true,
+      "test_directories": [
+        "unit",
+        "integration",
+        "performance",
+        "benchmarks"
+      ]
+    },
+    "basic_functionality": {
+      "valid": true
+    },
+    "sample_tests": {
+      "valid": true,
+      "return_code": 0
+    }
+  }
+}
