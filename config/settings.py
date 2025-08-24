@@ -356,8 +356,7 @@ class ApplicationSettings:
                 if hasattr(self.model, key):
                     # Handle enum fields
                     if key == "provider" and isinstance(value, str):
-                        from .models import ModelProvider
-                        self.model.provider = ModelProvider(value)
+                        self.model.provider = APIProvider(value)
                     else:
                         setattr(self.model, key, value)
         

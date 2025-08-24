@@ -19,6 +19,19 @@ class ToolCategory(Enum):
     AI = "ai"
     CUSTOM = "custom"
 
+class ToolCapability(Enum):
+    """Capabilities of tools."""
+    SEARCH = "search"
+    EMAIL = "email"
+    FILE_OPERATIONS = "file_operations"
+    SYSTEM_INFO = "system_info"
+    WEB_SCRAPING = "web_scraping"
+    DATABASE = "database"
+    API_INTEGRATION = "api_integration"
+    TEXT_PROCESSING = "text_processing"
+    IMAGE_PROCESSING = "image_processing"
+    AUDIO_PROCESSING = "audio_processing"
+
 class ToolAuthType(Enum):
     """Authentication types for tools."""
     NONE = "none"
@@ -36,6 +49,18 @@ class ToolParameter:
     required: bool = False
     default: Any = None
     options: Optional[List[Any]] = None
+
+@dataclass
+class ToolDefinition:
+    """Definition of a tool for registration."""
+    name: str
+    description: str
+    category: 'ToolCategory'
+    auth_type: ToolAuthType
+    parameters: List[ToolParameter]
+    capabilities: List['ToolCapability']
+    provider_class: str
+    config: Optional[Dict[str, Any]] = None
 
 @dataclass
 class ToolResult:

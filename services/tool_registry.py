@@ -75,6 +75,10 @@ class ToolRegistry(IToolRegistry):
         """Get a tool by name."""
         return self._tools.get(tool_name)
     
+    def get_available_tools(self) -> List[str]:
+        """Get list of available tool names."""
+        return list(self._tools.keys())
+    
     def list_tools(self, category: Optional[ToolCategory] = None) -> List[IToolProvider]:
         """List available tools."""
         tools = list(self._tools.values())

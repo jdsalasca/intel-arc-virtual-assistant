@@ -5,7 +5,7 @@ Handles model lifecycle, inference routing, and performance optimization.
 
 import logging
 import asyncio
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, AsyncIterator
 from datetime import datetime
 import time
 from pathlib import Path

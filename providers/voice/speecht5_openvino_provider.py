@@ -546,6 +546,21 @@ class SpeechT5OpenVINOProvider(IVoiceOutput):
                 (self.tts_stats["average_rtf"] * (total_requests - 1) + rtf) / total_requests
             )
     
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get model information."""
+        return {
+            "name": "SpeechT5-TTS",
+            "provider": "OpenVINO",
+            "type": "TTS",
+            "version": "1.0.0",
+            "description": "SpeechT5 text-to-speech optimized for Intel hardware",
+            "sample_rate": self.model_config["sample_rate"],
+            "max_text_length": self.model_config["max_text_length"],
+            "supports_streaming": self.model_config["supports_streaming"],
+            "device": self.device,
+            "is_loaded": self.is_model_loaded
+        }
+    
     def get_stats(self) -> Dict[str, Any]:
         """Get performance statistics."""
         return {
