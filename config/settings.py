@@ -27,6 +27,7 @@ class APIProvider(Enum):
     """API providers for various services."""
     OPENAI = "openai"
     LOCAL_OPENVINO = "local_openvino"
+    MISTRAL = "mistral"
     HUGGINGFACE = "huggingface"
     INTEL_NEURAL_COMPRESSOR = "intel_neural_compressor"
 
@@ -356,7 +357,11 @@ class ApplicationSettings:
                 if hasattr(self.model, key):
                     # Handle enum fields
                     if key == "provider" and isinstance(value, str):
-                        self.model.provider = APIProvider(value)
+                        try:
+                            self.model.provider = APIProvider(value)
+                        except ValueError:
+                            logger.warning(f"Unknown provider '{value}', using LOCAL_OPENVINO")
+                            self.model.provider = APIProvider.LOCAL_OPENVINO
                     else:
                         setattr(self.model, key, value)
         

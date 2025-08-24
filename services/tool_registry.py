@@ -204,11 +204,21 @@ class ToolRegistry(IToolRegistry):
         
         parameters = tool.get_parameters()
         
+        # Best-effort metadata
+        try:
+            category_val = tool.get_tool_category().value
+        except Exception:
+            category_val = "custom"
+        try:
+            auth_val = tool.get_auth_type().value
+        except Exception:
+            auth_val = "none"
+
         schema = {
             "name": tool.get_tool_name(),
             "description": tool.get_tool_description(),
-            "category": tool.get_tool_category().value,
-            "auth_type": tool.get_auth_type().value,
+            "category": category_val,
+            "auth_type": auth_val,
             "parameters": {
                 "type": "object",
                 "properties": {},

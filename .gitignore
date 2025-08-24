@@ -1,5 +1,3 @@
-# Intel AI Assistant - Comprehensive .gitignore
-
 # Python
 __pycache__/
 *.py[cod]
@@ -23,14 +21,16 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual Environment
-.venv/
+# Virtual environments
+.env
+.venv
+env/
 venv/
 ENV/
-env/
-.env
+env.bak/
+venv.bak/
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
@@ -45,109 +45,75 @@ env/
 .Trashes
 ehthumbs.db
 Thumbs.db
-desktop.ini
+
+# Models and data
+models/
+*.bin
+*.onnx
+*.xml
+*.mapping
+*.txt.gz
 
 # Logs
 *.log
 logs/
-log/
+
+# Configuration (keep examples)
+.env
+!.env.example
+config/local_*
+config/prod_*
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
 
-# Models and AI Files
-models/
-*.onnx
-*.bin
-*.safetensors
-*.pt
-*.pth
-cache/
-openvino_cache/
-huggingface_cache/
-transformers_cache/
-
-# Credentials and Secrets
-credentials/
-*.key
-*.pem
-*.p12
-.env.local
-.env.production
-secrets.json
-gmail.json
-api_keys.txt
-
-# Configuration overrides
-config/app_settings.json
-config/local_settings.json
-
-# Data and Conversations
-data/
-conversations/
-chat_history/
-user_data/
-
-# Testing
-.coverage
-.pytest_cache/
+# Test coverage
 htmlcov/
-.tox/
-.nox/
+.coverage
+.coverage.*
 coverage.xml
 *.cover
 .hypothesis/
-validation_report_*.json
+.pytest_cache/
+.tox/
 
-# FastAPI/Uvicorn
-.uvicorn.log
+# React build
+frontend/build/
+frontend/dist/
+frontend/node_modules/
+frontend/.next/
+
+# npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Temporary files
-tmp/
-temp/
 *.tmp
 *.temp
+.tmp/
+temp/
 
-# Audio files (can be large)
+# Audio files (generated)
 *.wav
 *.mp3
-*.flac
 *.m4a
+audio_output/
 
-# Image files (if not assets)
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
+# Cache
+.cache/
+cache/
 
-# Windows batch file outputs
-*.bat.log
+# Intel OpenVINO models (downloaded)
+Phi-3-*
+Qwen2.5-*
+TinyLlama-*
+*.ov
 
-# Jupyter Notebooks
-.ipynb_checkpoints/
+# Jupyter Notebook
+.ipynb_checkpoints
 
-# Package files
-*.tar.gz
-*.zip
-*.rar
-
-# Intel specific
-intel_profiles/cache/
-openvino_models/
-
-# Backup files
-*.bak
-*.backup
-*~
-
-# Runtime files
-*.pid
-*.sock
-
-# Generated documentation
+# Documentation build
 docs/_build/
-site/

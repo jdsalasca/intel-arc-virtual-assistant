@@ -41,8 +41,8 @@ from providers.tools.gmail_connector_tool import GmailConnectorTool
 from providers.tools.music_control_tool import MusicControlTool
 from providers.storage.sqlite_provider import SQLiteProvider
 
-# Import API routes (we'll create these next)
-from api.routes import chat, voice, tools, health
+# Import API routes
+from api.routes import chat_router, voice_router, health_router, tools_router
 
 # Setup logging
 logging.basicConfig(
@@ -140,17 +140,12 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Gmail connector not available: {e}")
 
         # Register Music Control tool (system provider by default)
-        # try:
-        #     music_tool = MusicControlTool()
-        #     try:
-        #         # Prefer name+instance signature if available
-        #         tool_registry.register_tool("music_control", music_tool)
-        #     except TypeError:
-        #         # Fallback to single-arg signature
-        #         tool_registry.register_tool(music_tool)
-        #     logger.info("✅ Music control tool registered")
-        # except Exception as e:
-        #     logger.warning(f"Music control tool registration failed: {e}")
+        try:
+            music_tool = MusicControlTool()
+            tool_registry.register_tool("music_control", music_tool)
+            logger.info("✅ Music control tool registered")
+        except Exception as e:
+            logger.warning(f"Music control tool registration failed: {e}")
         
         logger.info(f"✅ Tool registry initialized with {len(tool_registry.get_available_tools())} tools")
         
@@ -223,10 +218,10 @@ async def get_chat_agent() -> ChatAgentOrchestrator:
     return chat_agent
 
 # Include API routes
-app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
-app.include_router(voice.router, prefix="/api/v1/voice", tags=["voice"])
-app.include_router(tools.router, prefix="/api/v1/tools", tags=["tools"])
-app.include_router(health.router, prefix="/api/v1/health", tags=["health"])
+app.include_router(chat_router, prefix="/api/v1/chat", tags=["chat"])
+app.include_router(voice_router, prefix="/api/v1/voice", tags=["voice"])
+app.include_router(health_router, prefix="/api/v1/health", tags=["health"])
+app.include_router(tools_router, prefix="/api/v1/tools", tags=["tools"])
 
 # Static files
 if Path("web/static").exists():
