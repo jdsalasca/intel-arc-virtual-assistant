@@ -13,7 +13,7 @@ from core.models.conversation import (
     Conversation, Message, ConversationContext, ConversationSummary,
     MessageRole, MessageType, ConversationStatus, UserProfile
 )
-from core.interfaces.storage_provider import IConversationStorage, ICacheStorage
+from core.interfaces.storage_provider import IStorageProvider
 from core.exceptions import ConversationNotFound, MessageNotFound, ValidationException
 
 logger = logging.getLogger(__name__)
@@ -23,21 +23,16 @@ class ConversationManager:
     
     def __init__(
         self, 
-        storage: IConversationStorage,
-        cache: Optional[ICacheStorage] = None,
+        storage: IStorageProvider,
         max_context_messages: int = 20,
         context_strategy: str = "sliding_window"
     ):
         self.storage = storage
-        self.cache = cache
         self.max_context_messages = max_context_messages
         self.context_strategy = context_strategy
         
         # In-memory conversation contexts for active sessions
-        self._active_contexts: Dict[str, ConversationContext] = {}
-        
-        # Conversation summarization cache
-        self._summary_cache: Dict[str, str] = {}
+        self._active_contexts: Dict[str, Any] = {}
     
     async def create_conversation(
         self, 

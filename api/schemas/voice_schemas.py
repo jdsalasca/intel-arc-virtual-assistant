@@ -1,20 +1,19 @@
 """
 Voice API Schemas
-Pydantic schemas for voice API request/response validation.
+Pydantic schemas for voice API endpoints.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
 class TTSRequestSchema(BaseModel):
-    """Schema for TTS requests."""
-    
+    """TTS request schema."""
+    text: str = Field(..., min_length=1, max_length=5000)
     user_id: str
     conversation_id: Optional[str] = None
-    text: str = Field(..., min_length=1, max_length=5000)
-    voice_id: Optional[str] = "female_1"
-    speed: float = Field(1.0, ge=0.25, le=4.0)
+    voice_id: Optional[str] = "default"
+    speed: float = Field(1.0, ge=0.5, le=2.0)
     pitch: float = Field(1.0, ge=0.5, le=2.0)
     volume: float = Field(1.0, ge=0.1, le=2.0)
     output_format: str = "wav"
@@ -23,8 +22,7 @@ class TTSRequestSchema(BaseModel):
     provider: str = "speecht5"
 
 class TTSResponseSchema(BaseModel):
-    """Schema for TTS responses."""
-    
+    """TTS response schema."""
     request_id: str
     status: str
     success: bool
@@ -36,31 +34,27 @@ class TTSResponseSchema(BaseModel):
     error_message: Optional[str] = None
 
 class STTRequestSchema(BaseModel):
-    """Schema for STT requests."""
-    
+    """STT request schema."""
     user_id: str
     conversation_id: Optional[str] = None
     language: str = "auto"
     enable_punctuation: bool = True
     enable_word_confidence: bool = False
-    provider: str = "whisper"
 
 class STTResponseSchema(BaseModel):
-    """Schema for STT responses."""
-    
+    """STT response schema."""
     request_id: str
     status: str
     success: bool
     processing_time: Optional[float] = None
-    transcript: str = ""
+    transcript: Optional[str] = None
     confidence: Optional[float] = None
     language_detected: Optional[str] = None
     model_used: Optional[str] = None
     error_message: Optional[str] = None
 
-class VoiceSchema(BaseModel):
-    """Schema for voice information."""
-    
+class VoiceInfo(BaseModel):
+    """Voice information."""
     id: str
     name: str
     display_name: str
@@ -70,6 +64,5 @@ class VoiceSchema(BaseModel):
     available: bool = True
 
 class VoiceListSchema(BaseModel):
-    """Schema for voice list response."""
-    
-    voices: List[Dict[str, Any]]
+    """Voice list response."""
+    voices: List[VoiceInfo]

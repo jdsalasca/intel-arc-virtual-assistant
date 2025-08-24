@@ -84,6 +84,11 @@ class ChatAgentOrchestrator(IConversationalAgent, IToolCapableAgent, IMultimodal
                 r"email\s+(.+)",
                 r"unread\s+emails?",
                 r"recent\s+emails?"
+            ],
+            "music_control": [
+                r"^(play)\b(.*)$",
+                r"\b(pause|resume|next|previous)\b",
+                r"volume\s+(up|down|set\s+\d+)%?"
             ]
         }
         

@@ -8,10 +8,8 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import Response
 
-from core.models.voice import (
-    TTSRequest, TTSResponse, STTRequest, STTResponse,
-    VoiceFormat, VoiceGender, SpeechQuality
-)
+from core.interfaces.voice_provider import VoiceFormat, VoiceGender, SpeechQuality
+from core.models.voice import TTSRequest, TTSResponse, STTRequest, STTResponse
 from services.voice_service import VoiceService
 from api.schemas.voice_schemas import (
     TTSRequestSchema, STTRequestSchema, VoiceListSchema,

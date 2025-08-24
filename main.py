@@ -29,7 +29,7 @@ from config import (
 # Import our services and providers
 from services.intel_optimizer import IntelOptimizer
 from services.model_manager import ModelManager
-from services.conversation_manager import ConversationManager
+from services.simple_conversation_manager import ConversationManager
 from services.chat_agent_orchestrator import ChatAgentOrchestrator
 from services.tool_registry import ToolRegistry
 
@@ -38,6 +38,7 @@ from providers.models.mistral_openvino_provider import MistralOpenVINOProvider
 from providers.voice.speecht5_openvino_provider import SpeechT5OpenVINOProvider
 from providers.tools.enhanced_web_search_tool import EnhancedWebSearchTool
 from providers.tools.gmail_connector_tool import GmailConnectorTool
+from providers.tools.music_control_tool import MusicControlTool
 from providers.storage.sqlite_provider import SQLiteProvider
 
 # Import API routes (we'll create these next)
@@ -137,6 +138,19 @@ async def lifespan(app: FastAPI):
                 logger.info("✅ Gmail connector available")
         except Exception as e:
             logger.warning(f"Gmail connector not available: {e}")
+
+        # Register Music Control tool (system provider by default)
+        # try:
+        #     music_tool = MusicControlTool()
+        #     try:
+        #         # Prefer name+instance signature if available
+        #         tool_registry.register_tool("music_control", music_tool)
+        #     except TypeError:
+        #         # Fallback to single-arg signature
+        #         tool_registry.register_tool(music_tool)
+        #     logger.info("✅ Music control tool registered")
+        # except Exception as e:
+        #     logger.warning(f"Music control tool registration failed: {e}")
         
         logger.info(f"✅ Tool registry initialized with {len(tool_registry.get_available_tools())} tools")
         

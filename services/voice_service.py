@@ -13,7 +13,7 @@ import uuid
 from core.interfaces.voice_provider import IVoiceInput, IVoiceOutput, VoiceFormat
 from core.models.voice import (
     TTSRequest, TTSResponse, STTRequest, STTResponse, 
-    VoiceProcessingStatus, AudioFile, VoiceSettings
+    VoiceProcessingStatus
 )
 from core.exceptions import VoiceException, TTSException, STTException
 from services.intel_optimizer import IntelOptimizer

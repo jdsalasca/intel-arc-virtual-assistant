@@ -10,12 +10,12 @@ from datetime import datetime
 import inspect
 
 from core.interfaces.tool_provider import (
-    IToolProvider, IToolRegistry, ToolCategory, ToolResult, 
-    ToolParameter, ToolDefinition
+    IToolProvider, IToolRegistry, ToolCategory, ToolResult,
 )
 from core.models.tool import (
-    ToolRequest, ToolExecution, ToolUsageStats, 
-    ToolConfiguration, ToolStatus
+    ToolRequest, ToolExecution, ToolUsageStats,
+    ToolConfiguration, ToolStatus,
+    ToolResult as ModelToolResult,
 )
 from core.exceptions import (
     ToolException, ToolNotFound, ToolExecutionException, 
@@ -36,25 +36,40 @@ class ToolRegistry(IToolRegistry):
         # Built-in tools will be registered during initialization
         self._builtin_tools = []
     
-    def register_tool(self, tool: IToolProvider) -> bool:
-        """Register a new tool."""
+    def register_tool(self, tool_or_name, tool_provider: Optional[IToolProvider] = None) -> bool:
+        """Register a new tool.
+
+        Supports both signatures for consistency with callers:
+        - register_tool(tool: IToolProvider)
+        - register_tool(name: str, tool: IToolProvider)
+        """
         try:
-            tool_name = tool.get_tool_name()
-            
+            if tool_provider is None:
+                tool: IToolProvider = tool_or_name
+                tool_name = tool.get_tool_name()
+            else:
+                tool_name = str(tool_or_name)
+                tool = tool_provider
+
             # Validate tool
             if not self._validate_tool(tool):
                 raise ToolException(f"Tool {tool_name} failed validation")
-            
+
+            # Prevent duplicate names
+            if tool_name in self._tools:
+                logger.warning(f"Tool {tool_name} is already registered")
+                return False
+
             # Register tool
             self._tools[tool_name] = tool
-            
+
             # Initialize usage stats
             if tool_name not in self._usage_stats:
                 self._usage_stats[tool_name] = ToolUsageStats(tool_name=tool_name)
-            
+
             logger.info(f"Registered tool: {tool_name}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to register tool: {e}")
             return False
@@ -87,6 +102,10 @@ class ToolRegistry(IToolRegistry):
             tools = [tool for tool in tools if tool.get_tool_category() == category]
         
         return tools
+
+    def get_available_tools(self) -> List[str]:
+        """Return the list of registered tool names."""
+        return list(self._tools.keys())
     
     async def execute_tool(self, tool_name: str, parameters: Dict[str, Any], user_id: str = "system") -> ToolResult:
         """Execute a tool by name."""
@@ -129,7 +148,17 @@ class ToolRegistry(IToolRegistry):
                 
                 # Update execution
                 execution.completed_at = datetime.utcnow()
-                execution.result = result
+                # Map interface result to model result for internal tracking
+                execution.result = ModelToolResult(
+                    request_id=request.id,
+                    tool_name=tool_name,
+                    status=ToolStatus.COMPLETED if result.success else ToolStatus.FAILED,
+                    success=result.success,
+                    data=result.data,
+                    error=result.error,
+                    started_at=execution.started_at or datetime.utcnow(),
+                    completed_at=execution.completed_at,
+                )
                 
                 if result.success:
                     execution.status = ToolStatus.COMPLETED
@@ -148,29 +177,24 @@ class ToolRegistry(IToolRegistry):
                 execution.status = ToolStatus.FAILED
                 execution.completed_at = datetime.utcnow()
                 execution.add_log(f"Execution error: {str(e)}")
-                
-                error_result = ToolResult(
+                # Track error in model result
+                execution.result = ModelToolResult(
                     request_id=request.id,
                     tool_name=tool_name,
                     status=ToolStatus.FAILED,
                     success=False,
-                    error=str(e)
+                    error=str(e),
+                    started_at=execution.started_at or datetime.utcnow(),
+                    completed_at=execution.completed_at,
                 )
-                execution.result = error_result
-                
-                raise ToolExecutionException(f"Tool execution failed: {e}")
+                # Return interface-style error result
+                return ToolResult(success=False, error=str(e))
                 
         except Exception as e:
             logger.error(f"Failed to execute tool {tool_name}: {e}")
             
             # Return error result
-            return ToolResult(
-                request_id="error",
-                tool_name=tool_name,
-                status=ToolStatus.FAILED,
-                success=False,
-                error=str(e)
-            )
+            return ToolResult(success=False, error=str(e))
     
     def get_tool_schema(self, tool_name: str) -> Dict[str, Any]:
         """Get the schema for a tool."""
@@ -193,18 +217,17 @@ class ToolRegistry(IToolRegistry):
         }
         
         for param in parameters:
-            schema["parameters"]["properties"][param.name] = {
-                "type": param.type.value,
-                "description": param.description
+            prop = {
+                "type": param.type if isinstance(param.type, str) else str(param.type),
+                "description": param.description,
             }
-            
-            if param.default is not None:
-                schema["parameters"]["properties"][param.name]["default"] = param.default
-            
-            if param.enum_values:
-                schema["parameters"]["properties"][param.name]["enum"] = param.enum_values
-                
-            if param.required:
+            if getattr(param, "default", None) is not None:
+                prop["default"] = param.default
+            options = getattr(param, "options", None)
+            if options:
+                prop["enum"] = options
+            schema["parameters"]["properties"][param.name] = prop
+            if getattr(param, "required", False):
                 schema["parameters"]["required"].append(param.name)
         
         return schema
