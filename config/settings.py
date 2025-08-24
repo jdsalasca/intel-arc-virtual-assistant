@@ -400,45 +400,6 @@ class ApplicationSettings:
         if "current_intel_profile" in config_data:
             profile_name = config_data["current_intel_profile"]
             self.apply_intel_profile(profile_name)
-                    if key == "provider" and isinstance(value, str):
-                        try:
-                            value = APIProvider(value)
-                        except ValueError:
-                            pass
-                    setattr(self.model, key, value)
-
-        # Apply settings for other categories
-        sections = {
-            "voice": self.voice,
-            "web": self.web,
-            "conversation": self.conversation,
-            "tools": self.tools,
-            "security": self.security,
-            "performance": self.performance,
-        }
-        for section_key, section_obj in sections.items():
-            if section_key in config_data:
-                section_data = config_data[section_key]
-                for key, value in section_data.items():
-                    if hasattr(section_obj, key):
-                        setattr(section_obj, key, value)
-        
-        # Apply top-level settings
-        for key in ["app_name", "app_version", "environment", "auto_detect_hardware"]:
-            if key in config_data:
-                setattr(self, key, config_data[key])
-
-        if "log_level" in config_data:
-            level = config_data["log_level"]
-            if isinstance(level, str):
-                try:
-                    self.log_level = LogLevel(level)
-                except ValueError:
-                    pass
-            else:
-                self.log_level = level
-
-        # current_intel_profile already applied above if provided
     
     def save_config(self) -> bool:
         """Save current configuration to file."""
@@ -469,7 +430,6 @@ class ApplicationSettings:
             "auto_detect_hardware": self.auto_detect_hardware,
             "model": {
                 "name": self.model.name,
-                "provider": self.model.provider.value if hasattr(self.model.provider, 'value') else str(self.model.provider),
                 "provider": getattr(self.model.provider, "value", self.model.provider),
                 "device": self.model.device,
                 "precision": self.model.precision,

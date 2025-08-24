@@ -1,0 +1,140 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Cache and Temporary Files
+cache/
+.cache/
+temp/
+tmp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# Models and Data (large files)
+models/
+*.bin
+*.xml
+*.onnx
+*.pt
+*.pth
+*.safetensors
+
+# Credentials and Secrets
+credentials/
+*.key
+*.pem
+*.p12
+*.pfx
+api_keys.txt
+secrets.json
+token.pickle
+gmail_token.pickle
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Test Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Documentation Build
+docs/_build/
+site/
+
+# Node.js (if using npm for frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Configuration (keep templates, ignore actual configs)
+config/app_settings.json
+config/runtime_config.json
+config/intel_optimization.json
+
+# Validation Reports
+validation_report_*.json
+
+# Setup logs
+setup.log
+start_server.log
+
+# Backup files
+*.backup
+*_backup.*
+
+# OS-specific
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Windows
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
