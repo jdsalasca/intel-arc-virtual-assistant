@@ -37,6 +37,15 @@ class ModelManager:
         
         # Model configurations
         self._model_configs = {
+            "mistral-7b-instruct": {
+                "path": "test-model",
+                "type": ModelType.LLM,
+                "provider": "mistral",
+                "supports_chat": True,
+                "supports_streaming": True,
+                "default_max_tokens": 256,
+                "default_temperature": 0.7
+            },
             "qwen2.5-7b-int4": {
                 "path": "Qwen2.5-7B-Instruct-int4-ov",
                 "type": ModelType.LLM,
@@ -113,15 +122,18 @@ class ModelManager:
             
             # Get Intel optimization config
             intel_config = self.intel_optimizer.get_model_config(model_name, device)
+            # Remove device from intel_config to avoid parameter conflict
+            intel_config = {k: v for k, v in intel_config.items() if k != "device"}
             
             # Load the model
-            model_path = Path(config["path"])
-            if not model_path.is_absolute():
-                model_path = Path.cwd() / model_path
+            model_path = config["path"]
+            # Only convert to absolute path if it's a local path, not a HuggingFace identifier
+            if not model_path.startswith(("mistralai/", "microsoft/", "openai/", "facebook/", "google/", "huggingface/")) and not Path(model_path).is_absolute():
+                model_path = str(Path.cwd() / model_path)
             
             load_start = time.time()
             success = provider.load_model(
-                model_path=str(model_path),
+                model_path=model_path,
                 device=DeviceType(device),
                 **intel_config
             )

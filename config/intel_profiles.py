@@ -501,7 +501,7 @@ class IntelProfileManager:
             recommendations["models"]["primary"] = "phi-3-mini-int4"
             recommendations["models"]["fallback"] = "tinyllama-1.1b-int4"
         else:
-            recommendations["models"]["primary"] = "phi-3-mini-int4"
+            recommendations["models"]["primary"] = "mistral-7b-instruct"
             recommendations["models"]["fallback"] = "tinyllama-1.1b-int4"
         
         # Voice model recommendations

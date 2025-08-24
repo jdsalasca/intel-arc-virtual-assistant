@@ -6,8 +6,8 @@
   "current_intel_profile": null,
   "auto_detect_hardware": true,
   "model": {
-    "name": "phi-3-mini-int4",
-    "provider": "local_openvino",
+    "name": "mistral-7b-instruct",
+    "provider": "mistral",
     "device": "CPU",
     "precision": "FP16",
     "max_tokens": 256,

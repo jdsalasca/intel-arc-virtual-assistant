@@ -239,8 +239,8 @@ class ToolRegistry(IToolRegistry):
     def _validate_tool(self, tool: IToolProvider) -> bool:
         """Validate a tool before registration."""
         try:
-            # Check required methods
-            required_methods = ['get_tool_name', 'get_tool_description', 'get_tool_category', 'execute']
+            # Check required methods (category optional for broader compatibility)
+            required_methods = ['get_tool_name', 'get_tool_description', 'execute']
             for method in required_methods:
                 if not hasattr(tool, method) or not callable(getattr(tool, method)):
                     logger.error(f"Tool missing required method: {method}")
@@ -361,10 +361,18 @@ class ToolRegistry(IToolRegistry):
         for tool_name, tool in self._tools.items():
             try:
                 is_available = tool.is_available()
+                try:
+                    category_val = tool.get_tool_category().value
+                except Exception:
+                    category_val = "custom"
+                try:
+                    auth_val = tool.get_auth_type().value
+                except Exception:
+                    auth_val = "none"
                 health["tool_status"][tool_name] = {
                     "available": is_available,
-                    "category": tool.get_tool_category().value,
-                    "auth_type": tool.get_auth_type().value
+                    "category": category_val,
+                    "auth_type": auth_val
                 }
                 
                 if is_available:
@@ -389,8 +397,12 @@ class ToolRegistry(IToolRegistry):
         
         for tool in self._tools.values():
             # Skip if category filter doesn't match
-            if category and tool.get_tool_category() != category:
-                continue
+            if category:
+                try:
+                    if getattr(tool, 'get_tool_category', None) and tool.get_tool_category() != category:
+                        continue
+                except Exception:
+                    continue
             
             # Check if query matches name or description
             if (query_lower in tool.get_tool_name().lower() or 
