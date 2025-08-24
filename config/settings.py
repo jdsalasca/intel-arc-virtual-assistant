@@ -170,7 +170,10 @@ class ApplicationSettings:
         # Intel profile settings
         self.current_intel_profile: Optional[str] = None
         self.auto_detect_hardware: bool = True
-        
+
+        # Track whether a default config has been saved to avoid repeated writes
+        self._default_config_saved: bool = False
+
         # Load configuration
         self.load_config()
         
@@ -312,8 +315,10 @@ class ApplicationSettings:
                 return True
             else:
                 logger.info(f"Configuration file not found: {self.config_file}")
-                # Create default config
-                self.save_config()
+                # Create default config only once
+                if not self._default_config_saved:
+                    self.save_config()
+                    self._default_config_saved = True
                 return True
                 
         except Exception as e:
@@ -322,27 +327,55 @@ class ApplicationSettings:
     
     def _apply_config_data(self, config_data: Dict[str, Any]):
         """Apply configuration data to settings."""
+        # Apply Intel profile first so explicit config values can override recommendations
+        profile_name = config_data.get("current_intel_profile")
+        if profile_name:
+            self.apply_intel_profile(profile_name)
+
         # Apply model settings
         if "model" in config_data:
             model_data = config_data["model"]
             for key, value in model_data.items():
                 if hasattr(self.model, key):
+                    if key == "provider" and isinstance(value, str):
+                        try:
+                            value = APIProvider(value)
+                        except ValueError:
+                            pass
                     setattr(self.model, key, value)
+
+        # Apply settings for other categories
+        sections = {
+            "voice": self.voice,
+            "web": self.web,
+            "conversation": self.conversation,
+            "tools": self.tools,
+            "security": self.security,
+            "performance": self.performance,
+        }
+        for section_key, section_obj in sections.items():
+            if section_key in config_data:
+                section_data = config_data[section_key]
+                for key, value in section_data.items():
+                    if hasattr(section_obj, key):
+                        setattr(section_obj, key, value)
         
-        # Apply voice settings
-        if "voice" in config_data:
-            voice_data = config_data["voice"]
-            for key, value in voice_data.items():
-                if hasattr(self.voice, key):
-                    setattr(self.voice, key, value)
-        
-        # Apply other settings...
-        # (Similar pattern for other setting categories)
-        
-        # Apply Intel profile
-        if "current_intel_profile" in config_data:
-            profile_name = config_data["current_intel_profile"]
-            self.apply_intel_profile(profile_name)
+        # Apply top-level settings
+        for key in ["app_name", "app_version", "environment", "auto_detect_hardware"]:
+            if key in config_data:
+                setattr(self, key, config_data[key])
+
+        if "log_level" in config_data:
+            level = config_data["log_level"]
+            if isinstance(level, str):
+                try:
+                    self.log_level = LogLevel(level)
+                except ValueError:
+                    pass
+            else:
+                self.log_level = level
+
+        # current_intel_profile already applied above if provided
     
     def save_config(self) -> bool:
         """Save current configuration to file."""
@@ -373,7 +406,7 @@ class ApplicationSettings:
             "auto_detect_hardware": self.auto_detect_hardware,
             "model": {
                 "name": self.model.name,
-                "provider": self.model.provider.value,
+                "provider": getattr(self.model.provider, "value", self.model.provider),
                 "device": self.model.device,
                 "precision": self.model.precision,
                 "max_tokens": self.model.max_tokens,
@@ -457,8 +490,9 @@ class ApplicationSettings:
         
         # Validate paths
         if self.conversation.save_conversations:
-            if not os.path.exists(os.path.dirname(self.conversation.conversations_path)):
-                issues.append(f"Conversations directory does not exist: {self.conversation.conversations_path}")
+            directory = os.path.dirname(self.conversation.conversations_path)
+            if not os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
         
         return issues
 
