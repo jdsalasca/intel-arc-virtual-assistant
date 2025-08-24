@@ -22,18 +22,22 @@ const Header: React.FC<HeaderProps> = ({
   systemHealth
 }) => {
   const toggleTheme = () => {
-    const themes = ['light', 'dark', 'system'] as const;
-    const currentIndex = themes.indexOf(settings.theme);
-    const nextTheme = themes[(currentIndex + 1) % themes.length];
-    onSettingsChange({ ...settings, theme: nextTheme });
+    if (settings) {
+      const themes = ['light', 'dark', 'system'] as const;
+      const currentIndex = themes.indexOf(settings.theme);
+      const nextTheme = themes[(currentIndex + 1) % themes.length];
+      onSettingsChange({ ...settings, theme: nextTheme });
+    }
   };
 
   const toggleVoice = () => {
-    onSettingsChange({ ...settings, voice_enabled: !settings.voice_enabled });
+    if (settings) {
+      onSettingsChange({ ...settings, voice_enabled: !settings.voice_enabled });
+    }
   };
 
   const getThemeIcon = () => {
-    switch (settings.theme) {
+    switch (settings?.theme) {
       case 'light':
         return <Sun size={20} />;
       case 'dark':
@@ -99,20 +103,20 @@ const Header: React.FC<HeaderProps> = ({
           <button
             onClick={toggleVoice}
             className={`p-2 rounded-lg transition-colors ${
-              settings.voice_enabled
+              settings?.voice_enabled
                 ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
                 : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'
             }`}
-            title={settings.voice_enabled ? 'Disable voice' : 'Enable voice'}
+            title={settings?.voice_enabled ? 'Disable voice' : 'Enable voice'}
           >
-            {settings.voice_enabled ? <Mic size={20} /> : <MicOff size={20} />}
+            {settings?.voice_enabled ? <Mic size={20} /> : <MicOff size={20} />}
           </button>
 
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-            title={`Current theme: ${settings.theme}`}
+            title={`Current theme: ${settings?.theme || 'light'}`}
           >
             {getThemeIcon()}
           </button>

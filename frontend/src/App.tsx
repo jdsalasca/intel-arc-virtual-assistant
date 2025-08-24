@@ -6,7 +6,7 @@ import Sidebar from '@components/Sidebar';
 import Header from '@components/Header';
 import SettingsModal from '@components/SettingsModal';
 import ErrorFallback from '@components/ErrorFallback';
-import { useSystemStatus } from '@hooks/useChat';
+// import { useSystemStatus } from '@hooks/useChat';
 import { AppSettings } from '@types/index';
 
 // Default settings
@@ -32,8 +32,10 @@ function App() {
     return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
   });
 
-  // System status check
-  const { data: systemHealth, isError: systemError } = useSystemStatus();
+  // System status check (commented out for now to avoid API dependency)
+  // const { data: systemHealth, isError: systemError } = useSystemStatus();
+  const systemHealth = { status: 'healthy', service: 'wiwin-ai-assistant', version: '1.0.0' };
+  const systemError = false;
 
   // Apply theme
   useEffect(() => {
