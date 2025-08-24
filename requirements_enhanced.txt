@@ -1,0 +1,108 @@
+# Virtual Assistant Enhanced Requirements
+# Intel-optimized AI assistant with multi-modal capabilities
+
+# Core FastAPI and server dependencies
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+
+# Intel OpenVINO and AI acceleration
+openvino-genai>=2024.0.0
+openvino>=2024.0.0
+huggingface-hub>=0.19.0
+
+# Language model integrations
+langchain>=0.1.0
+langchain-openai>=0.0.2
+langchain-community>=0.0.10
+transformers>=4.35.0
+tokenizers>=0.15.0
+
+# Voice processing (TTS/STT)
+torch>=2.1.0
+torchaudio>=2.1.0
+speechrecognition>=3.10.0
+pydub>=0.25.1
+whisper-openai>=1.0.0
+espnet>=202308
+espnet-model-zoo>=0.1.7
+
+# Audio processing and codecs
+librosa>=0.10.0
+soundfile>=0.12.1
+pyaudio>=0.2.11
+
+# Tool integrations
+requests>=2.31.0
+aiohttp>=3.9.0
+googlesearch-python>=1.2.3
+beautifulsoup4>=4.12.0
+selenium>=4.15.0
+
+# Email integration
+smtplib-ssl>=1.0.0
+imaplib>=2.58
+email-validator>=2.1.0
+
+# MCP integration
+mcp>=1.0.0
+asyncio-mqtt>=0.13.0
+
+# Database and storage
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+sqlite3-utils>=3.35.0
+redis>=5.0.0
+python-dotenv>=1.0.0
+
+# Authentication and security
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.6
+
+# File handling and utilities
+pathlib>=1.0.1
+mimetypes>=1.6.0
+pillow>=10.0.0
+pypdf>=3.17.0
+python-docx>=1.1.0
+
+# Web scraping and internet access
+selenium>=4.15.0
+requests-html>=0.10.0
+newspaper3k>=0.2.8
+
+# Configuration and environment
+pyyaml>=6.0.1
+configparser>=6.0.0
+click>=8.1.0
+rich>=13.7.0
+
+# Performance monitoring
+psutil>=5.9.0
+py-cpuinfo>=9.0.0
+nvidia-ml-py>=12.535.0  # For GPU monitoring
+
+# Development and testing
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+httpx>=0.25.2
+black>=23.11.0
+flake8>=6.1.0
+isort>=5.12.0
+
+# Logging and monitoring
+structlog>=23.2.0
+prometheus-client>=0.19.0
+
+# Intel-specific optimizations
+intel-extension-for-pytorch>=2.1.0  # Intel CPU/GPU optimization
+mkl>=2024.0.0  # Intel Math Kernel Library
+
+# Additional utilities
+typer>=0.9.0  # CLI interface
+jinja2>=3.1.0  # Template engine
+websockets>=12.0  # WebSocket support
+sse-starlette>=1.8.0  # Server-sent events

@@ -56,10 +56,11 @@ class Message(BaseModel):
     generation_time: Optional[float] = None
     token_count: Optional[int] = None
 
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
         }
+    }
 
 class Conversation(BaseModel):
     """A conversation containing multiple messages."""
@@ -74,7 +75,7 @@ class Conversation(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
     # Conversation settings
-    model_config: Dict[str, Any] = Field(default_factory=dict)
+    conversation_model_config: Dict[str, Any] = Field(default_factory=dict)
     context_window: int = 4000
     max_tokens: int = 256
     temperature: float = 0.7
@@ -86,10 +87,11 @@ class Conversation(BaseModel):
     # Messages (not always loaded)
     messages: List[Message] = Field(default_factory=list)
 
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
         }
+    }
 
 class ConversationSummary(BaseModel):
     """Summary of a conversation for list views."""
@@ -168,7 +170,8 @@ class UserProfile(BaseModel):
     enabled_tools: List[str] = Field(default_factory=list)
     tool_permissions: Dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
         }
+    }
