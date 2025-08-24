@@ -4,7 +4,7 @@ FastAPI endpoints for text-to-speech and voice management.
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import Response
 import base64
@@ -18,12 +18,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/voice", tags=["voice"])
 
 
-def get_voice_service() -> IVoiceService:
-    """Dependency injection for voice service."""
-    # This will be replaced by proper DI container
-    from ..services import VoiceService
-    # For now, return a placeholder - this will be implemented in DI container
-    raise NotImplementedError("DI container not yet implemented")
+from ..config.container import get_voice_service
+
+
+# Dependency injection function is imported from container
 
 
 @router.post("/tts")
@@ -228,7 +226,7 @@ async def clear_voice_cache(
 @router.post("/benchmark")
 async def benchmark_voice(
     test_text: str = "This is a test of the voice synthesis system.",
-    voice_id: str = None,
+    voice_id: Optional[str] = None,
     voice_service: IVoiceService = Depends(get_voice_service)
 ) -> Dict[str, Any]:
     """Benchmark voice synthesis performance."""

@@ -5,9 +5,10 @@ Defines contracts for business logic operations following SOLID principles.
 
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any, AsyncGenerator
+from ..models.dto import ChatRequest, ChatResponse
 from ..models.domain import (
-    ChatRequest, ChatResponse, VoiceRequest, VoiceResponse,
-    Conversation, Message, ModelInfo, HardwareInfo, ToolResult
+    VoiceRequest, VoiceResponse, Conversation, Message, 
+    ModelInfo, HardwareInfo, ToolResult
 )
 
 
@@ -67,6 +68,31 @@ class IModelService(ABC):
         """Generate text using a loaded model."""
         pass
 
+    @abstractmethod
+    async def get_model_status(self, model_id: str) -> Dict[str, Any]:
+        """Get status of a specific model."""
+        pass
+
+    @abstractmethod
+    async def optimize_model(self, model_id: str, optimization_level: str) -> bool:
+        """Optimize a model for better performance."""
+        pass
+
+    @abstractmethod
+    async def validate_model(self, model_id: str) -> Dict[str, Any]:
+        """Validate model integrity and performance."""
+        pass
+
+    @abstractmethod
+    async def get_model_memory_usage(self) -> Dict[str, Any]:
+        """Get memory usage statistics for loaded models."""
+        pass
+
+    @abstractmethod
+    async def warmup_model(self, model_id: str) -> bool:
+        """Warm up a model with a test inference."""
+        pass
+
 
 class IVoiceService(ABC):
     """Interface for voice operations."""
@@ -89,6 +115,36 @@ class IVoiceService(ABC):
     @abstractmethod
     async def is_voice_available(self) -> bool:
         """Check if voice services are available."""
+        pass
+
+    @abstractmethod
+    async def get_voice_status(self) -> Dict[str, Any]:
+        """Get detailed status of voice services."""
+        pass
+
+    @abstractmethod
+    async def preload_voices(self, voice_ids: List[str]) -> Dict[str, bool]:
+        """Preload specific voices for faster synthesis."""
+        pass
+
+    @abstractmethod
+    async def set_voice_settings(self, settings: Dict[str, Any]) -> bool:
+        """Update voice service settings."""
+        pass
+
+    @abstractmethod
+    async def clear_cache(self) -> bool:
+        """Clear the voice response cache."""
+        pass
+
+    @abstractmethod
+    async def benchmark_voice(self, test_text: str, voice_id: Optional[str] = None) -> Dict[str, Any]:
+        """Benchmark voice synthesis performance."""
+        pass
+
+    @abstractmethod
+    async def get_synthesis_metadata(self) -> Dict[str, Any]:
+        """Get metadata from last synthesis."""
         pass
 
 
@@ -117,6 +173,26 @@ class IToolService(ABC):
     @abstractmethod
     async def unregister_tool(self, tool_name: str) -> bool:
         """Unregister a tool."""
+        pass
+
+    @abstractmethod
+    async def get_tool_info(self, tool_name: str) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a specific tool."""
+        pass
+
+    @abstractmethod
+    async def enable_tool(self, tool_name: str) -> bool:
+        """Enable a tool."""
+        pass
+
+    @abstractmethod
+    async def disable_tool(self, tool_name: str) -> bool:
+        """Disable a tool."""
+        pass
+
+    @abstractmethod
+    async def get_execution_statistics(self) -> Dict[str, Any]:
+        """Get overall tool execution statistics."""
         pass
 
 
@@ -188,6 +264,35 @@ class IConversationService(ABC):
         """Clear all messages from a conversation."""
         pass
 
+    @abstractmethod
+    async def get_conversation_messages(
+        self, conversation_id: str, limit: int = 50, offset: int = 0
+    ) -> List[Message]:
+        """Get messages from a conversation."""
+        pass
+
+    @abstractmethod
+    async def archive_conversation(self, conversation_id: str) -> bool:
+        """Archive a conversation."""
+        pass
+
+    @abstractmethod
+    async def restore_conversation(self, conversation_id: str) -> bool:
+        """Restore an archived conversation."""
+        pass
+
+    @abstractmethod
+    async def search_conversations(self, query: str, limit: int = 20) -> List[Conversation]:
+        """Search conversations by title or content."""
+        pass
+
+    @abstractmethod
+    async def search_messages(
+        self, query: str, conversation_id: Optional[str] = None, limit: int = 50
+    ) -> List[Message]:
+        """Search messages by content."""
+        pass
+
 
 class IHealthService(ABC):
     """Interface for system health monitoring."""
@@ -205,4 +310,24 @@ class IHealthService(ABC):
     @abstractmethod
     async def run_health_check(self) -> Dict[str, Any]:
         """Run comprehensive health check."""
+        pass
+
+    @abstractmethod
+    async def check_service_health(self, service_name: str) -> Dict[str, Any]:
+        """Check health of a specific service."""
+        pass
+
+    @abstractmethod
+    async def get_performance_metrics(self) -> Dict[str, Any]:
+        """Get detailed performance metrics."""
+        pass
+
+    @abstractmethod
+    async def run_diagnostics(self) -> Dict[str, Any]:
+        """Run comprehensive system diagnostics."""
+        pass
+
+    @abstractmethod
+    async def get_alerts(self) -> List[Dict[str, Any]]:
+        """Get current system alerts."""
         pass

@@ -20,20 +20,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
 
-def get_chat_service() -> IChatService:
-    """Dependency injection for chat service."""
-    # This will be replaced by proper DI container
-    from ..services import ChatService
-    # For now, return a placeholder - this will be implemented in DI container
-    raise NotImplementedError("DI container not yet implemented")
+from ..config.container import get_chat_service, get_conversation_service
 
 
-def get_conversation_service() -> IConversationService:
-    """Dependency injection for conversation service."""
-    # This will be replaced by proper DI container  
-    from ..services import ConversationService
-    # For now, return a placeholder - this will be implemented in DI container
-    raise NotImplementedError("DI container not yet implemented")
+# Dependency injection functions are imported from container
+# No need to redefine them here
 
 
 @router.post("/message", response_model=ChatResponse)

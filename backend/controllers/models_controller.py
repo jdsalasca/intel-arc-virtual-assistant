@@ -17,12 +17,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/models", tags=["models"])
 
 
-def get_model_service() -> IModelService:
-    """Dependency injection for model service."""
-    # This will be replaced by proper DI container
-    from ..services import ModelService
-    # For now, return a placeholder - this will be implemented in DI container
-    raise NotImplementedError("DI container not yet implemented")
+from ..config.container import get_model_service
+
+
+# Dependency injection function is imported from container
 
 
 @router.get("/", response_model=List[ModelInfo])
