@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  openvino-genai-server:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - WORKERS=1
+      - DEVICE=CPU  # Change to GPU if you have Intel GPU support
+      - LOG_LEVEL=info
+      # - OPENAI_API_KEY=your_secret_key_here  # Uncomment to enable authentication
+    volumes:
+      - ./models:/app/models  # Mount models directory for persistence
+      - ./.env:/app/.env      # Mount environment file if it exists
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Add a reverse proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - openvino-genai-server
+    restart: unless-stopped
+    profiles:
+      - proxy
+
+# Optional: Add networks for better isolation
+networks:
+  default:
+    name: openvino-genai-network

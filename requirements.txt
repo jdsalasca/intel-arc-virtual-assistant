@@ -1,0 +1,27 @@
+# Core server dependencies
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+
+# OpenVINO GenAI
+openvino-genai
+huggingface-hub
+
+# LangChain integration
+langchain>=0.1.0
+langchain-openai>=0.0.2
+langchain-community>=0.0.10
+
+# MCP integration
+mcp>=1.0.0
+
+# Additional utilities
+python-dotenv==1.0.0
+requests==2.31.0
+aiohttp==3.9.0
+asyncio-mqtt==0.13.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
