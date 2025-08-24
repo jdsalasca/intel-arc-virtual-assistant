@@ -1,19 +1,23 @@
 version: '3.8'
 
 services:
-  openvino-genai-server:
+  # Main application (backend + frontend)
+  intel-assistant:
     build: .
     ports:
-      - "8000:8000"
+      - "8000:8000"  # Backend API + Frontend serving
     environment:
       - HOST=0.0.0.0
       - PORT=8000
       - WORKERS=1
       - DEVICE=CPU  # Change to GPU if you have Intel GPU support
       - LOG_LEVEL=info
+      - SERVE_FRONTEND=true
+      - STATIC_FILES_DIR=static
       # - OPENAI_API_KEY=your_secret_key_here  # Uncomment to enable authentication
     volumes:
       - ./models:/app/models  # Mount models directory for persistence
+      - ./cache:/app/cache    # Mount cache directory
       - ./.env:/app/.env      # Mount environment file if it exists
     restart: unless-stopped
     healthcheck:
@@ -23,15 +27,52 @@ services:
       retries: 3
       start_period: 60s
 
-  # Optional: Add a reverse proxy
+  # Development: separate frontend and backend
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    profiles:
+      - dev
+    command: npm run dev
+
+  backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev  
+      target: backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DEV_MODE=true
+      - LOG_LEVEL=debug
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    profiles:
+      - dev
+    command: python backend/api_server.py
+
+  # Optional: Add a reverse proxy for production
   nginx:
     image: nginx:alpine
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro  # SSL certificates
     depends_on:
-      - openvino-genai-server
+      - intel-assistant
     restart: unless-stopped
     profiles:
       - proxy
@@ -39,4 +80,4 @@ services:
 # Optional: Add networks for better isolation
 networks:
   default:
-    name: openvino-genai-network
+    name: intel-assistant-network

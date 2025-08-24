@@ -9,9 +9,10 @@ import logging
 import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager
+from typing import Any
 
-# Add current directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,7 +29,7 @@ from config import (
 # Import our services and providers
 from services.intel_optimizer import IntelOptimizer
 from services.model_manager import ModelManager
-from services.simple_conversation_manager import ConversationManager
+from services.conversation_manager import ConversationManager
 from services.chat_agent_orchestrator import ChatAgentOrchestrator
 from services.tool_registry import ToolRegistry
 
@@ -51,7 +52,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Global services - these will be initialized during startup
-app_state = {
+app_state: dict[str, Any] = {
     "intel_optimizer": None,
     "model_manager": None,
     "conversation_manager": None,
@@ -313,7 +314,7 @@ if __name__ == "__main__":
     
     # Run server
     uvicorn.run(
-        "backend_api:app",
+        "api_server:app",
         host=host,
         port=port,
         workers=workers,

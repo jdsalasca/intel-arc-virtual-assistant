@@ -29,7 +29,7 @@ from config import (
 # Import our services and providers
 from services.intel_optimizer import IntelOptimizer
 from services.model_manager import ModelManager
-from services.simple_conversation_manager import ConversationManager
+from services.conversation_manager import ConversationManager
 from services.chat_agent_orchestrator import ChatAgentOrchestrator
 from services.tool_registry import ToolRegistry
 
