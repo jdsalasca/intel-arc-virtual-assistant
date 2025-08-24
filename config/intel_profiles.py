@@ -423,12 +423,25 @@ class IntelProfileManager:
                     return "ultra7_arc750_npu"  # Default Arc profile
             elif has_arc_gpu:
                 return "ultra7_arc750_npu"  # Arc without NPU
-            elif cpu_cores >= 12:
-                return "i7_irisxe"  # High-end CPU
-            elif cpu_cores >= 6:
-                return "i5_uhd"  # Mid-range CPU
+            elif has_npu:
+                # NPU without dedicated GPU - use high-end CPU with NPU
+                if cpu_cores >= 12:
+                    return "i7_irisxe"  # High-end CPU with integrated graphics
+                else:
+                    return "i5_uhd"  # Mid-range CPU with integrated graphics
             else:
-                return "cpu_only"  # Fallback
+                # No dedicated GPU or NPU - check for integrated graphics hint
+                # If hardware_info explicitly says no GPU at all, use cpu_only
+                gpu_info = hardware_info.get("arc_gpu", {})
+                if gpu_info.get("available") is False:
+                    # Explicitly no GPU available
+                    return "cpu_only"
+                elif cpu_cores >= 12:
+                    return "i7_irisxe"  # High-end CPU (likely has integrated graphics)
+                elif cpu_cores >= 6:
+                    return "i5_uhd"  # Mid-range CPU (likely has integrated graphics)
+                else:
+                    return "cpu_only"  # Low-end CPU or explicitly CPU-only
                 
         except Exception as e:
             logger.error(f"Profile auto-detection failed: {e}")

@@ -170,12 +170,13 @@ class ApplicationSettings:
         # Intel profile settings
         self.current_intel_profile: Optional[str] = None
         self.auto_detect_hardware: bool = True
+        self._profile_applied = False  # Track if profile has been applied
         
-        # Load configuration
+        # Load configuration first
         self.load_config()
         
-        # Apply Intel profile optimizations
-        if self.auto_detect_hardware:
+        # Apply Intel profile optimizations only if not already applied
+        if self.auto_detect_hardware and not self._profile_applied:
             self._auto_configure_intel_hardware()
     
     def _auto_configure_intel_hardware(self):
@@ -266,6 +267,7 @@ class ApplicationSettings:
         # Update current profile
         self.current_intel_profile = profile_name
         self.intel_profile_manager.set_current_profile(profile_name)
+        self._profile_applied = True  # Mark profile as applied
         
         logger.info(f"Applied Intel profile: {profile_name}")
         return True
@@ -322,11 +324,27 @@ class ApplicationSettings:
     
     def _apply_config_data(self, config_data: Dict[str, Any]):
         """Apply configuration data to settings."""
+        # Apply app settings first to preserve values
+        if "app_name" in config_data:
+            self.app_name = config_data["app_name"]
+        if "app_version" in config_data:
+            self.app_version = config_data["app_version"]
+        if "log_level" in config_data:
+            self.log_level = LogLevel(config_data["log_level"])
+        if "environment" in config_data:
+            self.environment = config_data["environment"]
+        
         # Apply model settings
         if "model" in config_data:
             model_data = config_data["model"]
             for key, value in model_data.items():
                 if hasattr(self.model, key):
+                    if key == "provider" and isinstance(value, str):
+                        # Convert string to enum
+                        try:
+                            value = APIProvider(value)
+                        except ValueError:
+                            value = APIProvider.LOCAL_OPENVINO
                     setattr(self.model, key, value)
         
         # Apply voice settings
@@ -339,10 +357,11 @@ class ApplicationSettings:
         # Apply other settings...
         # (Similar pattern for other setting categories)
         
-        # Apply Intel profile
+        # Apply Intel profile last
         if "current_intel_profile" in config_data:
             profile_name = config_data["current_intel_profile"]
-            self.apply_intel_profile(profile_name)
+            if profile_name:
+                self.apply_intel_profile(profile_name)
     
     def save_config(self) -> bool:
         """Save current configuration to file."""
@@ -364,6 +383,15 @@ class ApplicationSettings:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert settings to dictionary format."""
+        # Handle provider value - ensure it's properly converted
+        provider_value = self.model.provider
+        if hasattr(provider_value, 'value'):
+            provider_value = provider_value.value
+        elif isinstance(provider_value, str):
+            provider_value = provider_value
+        else:
+            provider_value = str(provider_value)
+        
         return {
             "app_name": self.app_name,
             "app_version": self.app_version,
@@ -373,7 +401,7 @@ class ApplicationSettings:
             "auto_detect_hardware": self.auto_detect_hardware,
             "model": {
                 "name": self.model.name,
-                "provider": self.model.provider.value,
+                "provider": provider_value,
                 "device": self.model.device,
                 "precision": self.model.precision,
                 "max_tokens": self.model.max_tokens,

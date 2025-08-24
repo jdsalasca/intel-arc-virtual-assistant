@@ -27,23 +27,61 @@ class ToolAuthType(Enum):
     TOKEN = "token"
     CUSTOM = "custom"
 
+class ParameterType(Enum):
+    """Types of tool parameters."""
+    STRING = "string"
+    NUMBER = "number"
+    INTEGER = "integer"
+    BOOLEAN = "boolean"
+    ARRAY = "array"
+    OBJECT = "object"
+    FILE = "file"
+    DATE = "date"
+    DATETIME = "datetime"
+    EMAIL = "email"
+    URL = "url"
+
 @dataclass
 class ToolParameter:
     """Definition of a tool parameter."""
     name: str
-    type: str  # "string", "number", "boolean", "array", "object"
+    type: ParameterType
     description: str
     required: bool = False
     default: Any = None
-    options: Optional[List[Any]] = None
+    enum_values: Optional[List[Any]] = None
+    min_value: Optional[Union[int, float]] = None
+    max_value: Optional[Union[int, float]] = None
+    min_length: Optional[int] = None
+    max_length: Optional[int] = None
+    pattern: Optional[str] = None
 
 @dataclass
 class ToolResult:
     """Result of tool execution."""
-    success: bool
+    tool_name: str = ""
+    request_id: str = ""
+    success: bool = False
     data: Any = None
     error: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    execution_time: Optional[float] = None
+    status: Optional[str] = None
+    message: Optional[str] = None
+
+@dataclass
+class ToolDefinition:
+    """Complete definition of a tool."""
+    name: str
+    description: str
+    category: ToolCategory
+    parameters: List[ToolParameter]
+    auth_type: ToolAuthType
+    version: str = "1.0.0"
+    author: Optional[str] = None
+    url: Optional[str] = None
+    icon: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 class IToolProvider(ABC):
     """Abstract interface for tool providers."""
