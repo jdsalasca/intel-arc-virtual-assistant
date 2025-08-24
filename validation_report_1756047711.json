@@ -1,0 +1,166 @@
+{
+  "validation_time": "2025-08-24 10:01:07",
+  "system_info": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python_version": "3.13.6",
+    "cpu_count": 8,
+    "memory_gb": 31.55,
+    "architecture": "64bit",
+    "machine": "AMD64"
+  },
+  "component_tests": {
+    "dependencies": {
+      "available": {
+        "core": [
+          "speech_recognition",
+          "pyttsx3",
+          "requests",
+          "fastapi",
+          "uvicorn",
+          "pydantic"
+        ],
+        "ai": [
+          "torch",
+          "transformers",
+          "openvino"
+        ],
+        "voice": [
+          "pyaudio",
+          "pygame"
+        ],
+        "search": [
+          "duckduckgo_search",
+          "wikipedia"
+        ],
+        "testing": [
+          "pytest",
+          "pytest_asyncio",
+          "pytest_cov"
+        ]
+      },
+      "missing": {
+        "core": [
+          "beautifulsoup4"
+        ],
+        "ai": [],
+        "voice": [],
+        "search": [],
+        "testing": []
+      },
+      "errors": {
+        "core": [],
+        "ai": [],
+        "voice": [],
+        "search": [],
+        "testing": []
+      },
+      "summary": {
+        "total_dependencies": 17,
+        "available": 16,
+        "missing": 1,
+        "errors": 0,
+        "success_rate": 94.1
+      }
+    },
+    "voice": {
+      "robust_adapter": {
+        "available": true,
+        "error": null
+      },
+      "enhanced_service": {
+        "available": true,
+        "error": null
+      },
+      "microphone": {
+        "available": false,
+        "error": null
+      },
+      "tts": {
+        "available": true,
+        "error": null
+      },
+      "integration": {
+        "working": true,
+        "error": null
+      }
+    },
+    "search": {
+      "service_available": true,
+      "engines": {
+        "duckduckgo": {
+          "working": true,
+          "results_count": 1
+        },
+        "wikipedia": {
+          "working": true,
+          "results_count": 1
+        },
+        "web_scrape": {
+          "working": true,
+          "results_count": 0
+        }
+      },
+      "test_search": {
+        "success": true,
+        "results_count": 2,
+        "error": null
+      }
+    },
+    "ai_brain": {
+      "initialization": {
+        "success": true,
+        "error": null
+      },
+      "voice_integration": {
+        "working": true,
+        "error": null
+      },
+      "search_integration": {
+        "working": true,
+        "error": null
+      },
+      "conversation": {
+        "working": true,
+        "error": null
+      }
+    },
+    "existing_architecture": {
+      "intel_optimizer": {
+        "available": true,
+        "error": null
+      },
+      "voice_interfaces": {
+        "available": true,
+        "error": null
+      },
+      "api_routes": {
+        "available": true,
+        "error": null
+      },
+      "configuration": {
+        "available": true,
+        "error": null
+      }
+    }
+  },
+  "integration_tests": {
+    "full_system": {
+      "working": true,
+      "error": null
+    },
+    "voice_to_search": {
+      "working": false,
+      "error": null
+    },
+    "im_alive_test": {
+      "working": true,
+      "results": "I'll search for 'im alive' on the internet for you! Check the console for detailed results.",
+      "error": null
+    }
+  },
+  "fixes_applied": [],
+  "recommendations": [
+    "Install missing dependencies with: pip install beautifulsoup4",
+    "Check microphone permissions and drivers for voice input"
+  ]
+}

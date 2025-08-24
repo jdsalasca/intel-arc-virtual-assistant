@@ -151,14 +151,29 @@ class TestIntelProfileManager:
         """Test auto-detection with CPU-only hardware."""
         manager = IntelProfileManager()
         
+        # Test with very low thread count for true CPU-only
         hardware_info = {
-            "cpu": {"threads": 8},
+            "cpu": {"threads": 4},  # Less than 6 threads
             "arc_gpu": {"available": False},
             "npu": {"available": False}
         }
         
         profile_name = manager.auto_detect_profile(hardware_info)
         assert profile_name == "cpu_only"
+    
+    def test_auto_detect_profile_i5_uhd(self):
+        """Test auto-detection with mid-range CPU (integrated graphics)."""
+        manager = IntelProfileManager()
+        
+        # Test with 8 threads - should detect i5 with UHD graphics
+        hardware_info = {
+            "cpu": {"threads": 8},  # 6-11 threads = i5_uhd
+            "arc_gpu": {"available": False},
+            "npu": {"available": False}
+        }
+        
+        profile_name = manager.auto_detect_profile(hardware_info)
+        assert profile_name == "i5_uhd"
     
     def test_auto_detect_profile_with_gpu(self):
         """Test auto-detection with Arc GPU."""
@@ -190,10 +205,12 @@ class TestIntelProfileManager:
         """Test auto-detection error handling."""
         manager = IntelProfileManager()
         
-        # Test with invalid hardware info
-        invalid_hardware = {"invalid": "data"}
-        profile_name = manager.auto_detect_profile(invalid_hardware)
-        assert profile_name == "cpu_only"  # Should fallback
+        # Test with invalid hardware info - should use default thread count
+        with patch('os.cpu_count', return_value=8):  # Ensure consistent default
+            invalid_hardware = {"invalid": "data"}
+            profile_name = manager.auto_detect_profile(invalid_hardware)
+            # With default thread count (8 from os.cpu_count), should return i5_uhd
+            assert profile_name == "i5_uhd"  # Default behavior with 8 threads
     
     def test_set_current_profile(self):
         """Test setting current profile."""

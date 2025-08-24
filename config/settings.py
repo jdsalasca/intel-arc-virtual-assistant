@@ -322,12 +322,34 @@ class ApplicationSettings:
     
     def _apply_config_data(self, config_data: Dict[str, Any]):
         """Apply configuration data to settings."""
+        # Apply top-level settings
+        if "app_name" in config_data:
+            self.app_name = config_data["app_name"]
+        if "app_version" in config_data:
+            self.app_version = config_data["app_version"]
+        if "log_level" in config_data:
+            # Handle both string and enum values
+            log_level = config_data["log_level"]
+            if isinstance(log_level, str):
+                self.log_level = LogLevel(log_level)
+            else:
+                self.log_level = log_level
+        if "environment" in config_data:
+            self.environment = config_data["environment"]
+        if "auto_detect_hardware" in config_data:
+            self.auto_detect_hardware = config_data["auto_detect_hardware"]
+        
         # Apply model settings
         if "model" in config_data:
             model_data = config_data["model"]
             for key, value in model_data.items():
                 if hasattr(self.model, key):
-                    setattr(self.model, key, value)
+                    # Handle enum fields
+                    if key == "provider" and isinstance(value, str):
+                        from .models import ModelProvider
+                        self.model.provider = ModelProvider(value)
+                    else:
+                        setattr(self.model, key, value)
         
         # Apply voice settings
         if "voice" in config_data:
@@ -336,8 +358,33 @@ class ApplicationSettings:
                 if hasattr(self.voice, key):
                     setattr(self.voice, key, value)
         
-        # Apply other settings...
-        # (Similar pattern for other setting categories)
+        # Apply web settings
+        if "web" in config_data:
+            web_data = config_data["web"]
+            for key, value in web_data.items():
+                if hasattr(self.web, key):
+                    setattr(self.web, key, value)
+        
+        # Apply conversation settings
+        if "conversation" in config_data:
+            conv_data = config_data["conversation"]
+            for key, value in conv_data.items():
+                if hasattr(self.conversation, key):
+                    setattr(self.conversation, key, value)
+        
+        # Apply tools settings
+        if "tools" in config_data:
+            tools_data = config_data["tools"]
+            for key, value in tools_data.items():
+                if hasattr(self.tools, key):
+                    setattr(self.tools, key, value)
+        
+        # Apply performance settings
+        if "performance" in config_data:
+            perf_data = config_data["performance"]
+            for key, value in perf_data.items():
+                if hasattr(self.performance, key):
+                    setattr(self.performance, key, value)
         
         # Apply Intel profile
         if "current_intel_profile" in config_data:
@@ -373,7 +420,7 @@ class ApplicationSettings:
             "auto_detect_hardware": self.auto_detect_hardware,
             "model": {
                 "name": self.model.name,
-                "provider": self.model.provider.value,
+                "provider": self.model.provider.value if hasattr(self.model.provider, 'value') else str(self.model.provider),
                 "device": self.model.device,
                 "precision": self.model.precision,
                 "max_tokens": self.model.max_tokens,

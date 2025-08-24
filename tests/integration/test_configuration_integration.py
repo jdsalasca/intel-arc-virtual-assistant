@@ -52,6 +52,16 @@ class TestConfigurationAPI:
                 "npu": {"performance": "high"}
             }
         }
+        
+        # Mock the intel_profile_manager attribute
+        mock_intel_manager = Mock()
+        mock_intel_manager.get_profile_details.return_value = {
+            "name": "Intel Core Ultra 7 + Arc A770 + NPU",
+            "description": "High-performance setup",
+            "capabilities": {"cpu": {"performance": "ultra"}}
+        }
+        settings.intel_profile_manager = mock_intel_manager
+        
         return settings
     
     @pytest.fixture

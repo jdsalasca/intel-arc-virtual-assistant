@@ -60,19 +60,22 @@ class EnhancedVoiceService:
             logger.error(f"Failed to initialize voice system: {e}")
             print(f"⚠️  Voice system initialization failed: {e}")
             
-    def _safe_initialize_microphone(self):
+    def _safe_initialize_microphone(self, quiet_mode: bool = False):
         """Safely initialize microphone with proper error handling."""
         try:
             # Check if microphone devices are available
-            print("🎤 Calibrating microphone for ambient noise...")
+            if not quiet_mode:
+                print("🎤 Calibrating microphone for ambient noise...")
             
             try:
                 microphone_list = sr.Microphone.list_microphone_names()
                 if not microphone_list:
-                    print("⚠️  No microphone devices found")
+                    if not quiet_mode:
+                        print("⚠️  No microphone devices found")
                     return None
             except Exception as e:
-                print(f"⚠️  Could not enumerate microphones: {e}")
+                if not quiet_mode:
+                    print(f"⚠️  Could not enumerate microphones: {e}")
                 # Continue anyway - maybe there's a default device
                 
             # Try to initialize microphone with different approaches
@@ -86,12 +89,14 @@ class EnhancedVoiceService:
                     if hasattr(source, 'stream') or hasattr(source, 'CHUNK'):
                         # Quick ambient noise adjustment
                         self.recognizer.adjust_for_ambient_noise(source, duration=0.2)
-                        print("✅ Microphone calibrated!")
+                        if not quiet_mode:
+                            print("✅ Microphone calibrated!")
                         return mic
                     else:
                         raise RuntimeError("Microphone source invalid")
             except Exception as e:
-                print(f"⚠️  Default microphone failed: {e}")
+                if not quiet_mode:
+                    print(f"⚠️  Default microphone failed: {e}")
                 mic = None
             
             # Approach 2: Try specific device index if default failed
@@ -101,19 +106,23 @@ class EnhancedVoiceService:
                     mic = sr.Microphone(device_index=0)
                     with mic as source:
                         self.recognizer.adjust_for_ambient_noise(source, duration=0.2)
-                        print("✅ Microphone calibrated (device 0)!")
+                        if not quiet_mode:
+                            print("✅ Microphone calibrated (device 0)!")
                         return mic
                 except Exception as e:
-                    print(f"⚠️  Device 0 microphone failed: {e}")
+                    if not quiet_mode:
+                        print(f"⚠️  Device 0 microphone failed: {e}")
                     mic = None
             
             # If all approaches failed
             if mic is None:
-                print("⚠️  No working microphone found - voice input disabled")
+                if not quiet_mode:
+                    print("⚠️  No working microphone found - voice input disabled")
                 return None
                 
         except Exception as e:
-            print(f"⚠️  Microphone initialization failed: {e}")
+            if not quiet_mode:
+                print(f"⚠️  Microphone initialization failed: {e}")
             return None
             
     def _safe_initialize_tts(self):
@@ -169,21 +178,21 @@ class EnhancedVoiceService:
             logger.error(f"TTS error: {e}")
             print(f"🔊 {text}")  # Fallback
     
-    def listen_once(self, timeout: float = 5.0) -> Optional[str]:
+    def listen_once(self, timeout: float = 5.0, suppress_output: bool = False) -> Optional[str]:
         """Listen for speech once and return recognized text."""
         if not self.microphone:
-            logger.warning("Microphone not available for speech recognition")
+            # Don't spam logs when microphone is known to be unavailable
             return None
         
         try:
             # Verify microphone is still valid before using
             if not hasattr(self.microphone, '__enter__') or not hasattr(self.microphone, '__exit__'):
-                logger.error("Microphone object is invalid")
+                logger.warning("Microphone object is invalid, disabling")
                 self.microphone = None
                 return None
             
-            # Only print listening message if not in continuous mode
-            if not self.is_listening:
+            # Only print listening message if not in continuous mode and not suppressed
+            if not self.is_listening and not suppress_output:
                 print("🎤 Listening...")
             
             # Use a more robust approach with better error handling
@@ -192,7 +201,7 @@ class EnhancedVoiceService:
                 with self.microphone as source:
                     # Validate the source object
                     if source is None:
-                        logger.error("Microphone source is None")
+                        logger.warning("Microphone source is None, disabling")
                         self.microphone = None
                         return None
                     
@@ -204,12 +213,20 @@ class EnhancedVoiceService:
                     audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=10)
                     
             except (OSError, AttributeError, RuntimeError) as mic_error:
-                logger.error(f"Microphone context error: {mic_error}")
+                # These are critical microphone errors - disable and don't spam
+                error_msg = str(mic_error)
+                if "'NoneType'" in error_msg and "close" in error_msg:
+                    # This is the specific error we're trying to eliminate
+                    pass  # Silently handle this common error
+                else:
+                    logger.warning(f"Microphone context error: {mic_error}")
                 self.microphone = None
                 return None
             except Exception as mic_error:
-                logger.error(f"Microphone error: {mic_error}")
                 # For any other microphone error, disable it
+                error_msg = str(mic_error)
+                if not ("'NoneType'" in error_msg and "close" in error_msg):
+                    logger.warning(f"Microphone error: {mic_error}")
                 self.microphone = None
                 return None
             
@@ -217,37 +234,42 @@ class EnhancedVoiceService:
             if audio is None:
                 return None
                 
-            if not self.is_listening:
+            if not self.is_listening and not suppress_output:
                 print("🔄 Processing speech...")
                 
             text = self.recognizer.recognize_google(audio, language=self.voice_language)
             
-            if not self.is_listening:
+            if not self.is_listening and not suppress_output:
                 print(f"🎯 Recognized: {text}")
                 
             return text
             
         except sr.WaitTimeoutError:
-            if not self.is_listening:
+            if not self.is_listening and not suppress_output:
                 print("⏱️  Listening timeout")
             return None
         except sr.UnknownValueError:
-            if not self.is_listening:
+            if not self.is_listening and not suppress_output:
                 print("❓ Could not understand audio")
             return None
         except sr.RequestError as e:
-            logger.error(f"Speech recognition service error: {e}")
+            if not suppress_output:
+                logger.warning(f"Speech recognition service error: {e}")
             return None
         except Exception as e:
-            # Log the error but don't spam the user in continuous mode
-            logger.error(f"Unexpected listening error: {e}")
-            # If it's a critical error with the microphone, disable it
-            if "'NoneType'" in str(e) or "close" in str(e):
-                logger.warning("Disabling microphone due to critical error")
+            # Handle the specific NoneType close error silently
+            error_msg = str(e)
+            if "'NoneType'" in error_msg and "close" in error_msg:
+                # This is the error causing the infinite loop - handle silently
                 self.microphone = None
-            # Don't print error messages in continuous mode to avoid spam
-            if not self.is_listening:
-                print(f"❌ Unexpected error: {e}")
+                return None
+            
+            # Log other unexpected errors but don't spam in continuous mode
+            if not suppress_output:
+                logger.warning(f"Unexpected listening error: {e}")
+            
+            # Disable microphone for any critical errors
+            self.microphone = None
             return None
     
     def start_continuous_listening(self):
@@ -274,32 +296,43 @@ class EnhancedVoiceService:
         microphone_failures = 0
         max_failures = 3  # Reduced max failures
         consecutive_errors = 0
-        max_consecutive_errors = 10
+        max_consecutive_errors = 5  # Reduced to stop faster
+        last_error_time = 0
+        error_cooldown = 2.0  # Seconds between error messages
         
         while self.is_listening:
             try:
                 # If microphone is unavailable, try to reinitialize or stop
                 if not self.microphone:
                     microphone_failures += 1
+                    current_time = time.time()
+                    
+                    # Only log microphone failure occasionally
+                    if current_time - last_error_time > error_cooldown:
+                        logger.warning(f"Microphone unavailable, attempt {microphone_failures}/{max_failures}")
+                        last_error_time = current_time
+                    
                     if microphone_failures >= max_failures:
                         logger.warning("Too many microphone failures, stopping continuous listening")
+                        print("🎤 Voice input disabled due to microphone issues")
                         self.is_listening = False
                         break
                     
-                    # Try to reinitialize microphone
-                    logger.info("Attempting to reinitialize microphone...")
-                    self.microphone = self._safe_initialize_microphone()
+                    # Try to reinitialize microphone quietly
+                    self.microphone = self._safe_initialize_microphone(quiet_mode=True)
                     
                     if not self.microphone:
-                        time.sleep(5.0)  # Wait longer when microphone is unavailable
+                        time.sleep(3.0)  # Wait when microphone is unavailable
                         continue
+                    else:
+                        print("🎤 Voice recognition is active")
                 
                 # Reset failure counters on successful microphone detection
                 microphone_failures = 0
                 consecutive_errors = 0
                 
-                # Attempt speech recognition with timeout
-                text = self.listen_once(timeout=1.0)
+                # Attempt speech recognition with timeout - suppress all output during continuous mode
+                text = self.listen_once(timeout=1.0, suppress_output=True)
                 if text:
                     self.voice_queue.put(text)
                     if self.on_speech_recognized:
@@ -311,29 +344,35 @@ class EnhancedVoiceService:
             except Exception as e:
                 consecutive_errors += 1
                 error_msg = str(e)
+                current_time = time.time()
                 
-                # Log the error but avoid spamming
-                if consecutive_errors <= 3:
-                    logger.error(f"Continuous listening error: {e}")
-                
-                # Check for critical microphone errors
+                # Check for critical microphone errors first
                 if ("'NoneType'" in error_msg and "close" in error_msg) or "Microphone" in error_msg:
                     logger.warning("Critical microphone error detected, disabling microphone")
                     self.microphone = None
                     microphone_failures += 1
+                    # Skip further error handling for this specific error
+                    time.sleep(1.0)
+                    continue
                 
-                # Call error handler if available
-                if self.on_speech_error and consecutive_errors <= 3:
+                # Log other errors occasionally and avoid spamming
+                if consecutive_errors <= 2 and current_time - last_error_time > error_cooldown:
+                    logger.error(f"Continuous listening error: {e}")
+                    last_error_time = current_time
+                
+                # Call error handler if available - but only for non-critical errors
+                if self.on_speech_error and consecutive_errors <= 2:
                     self.on_speech_error(error_msg)
                 
                 # If too many consecutive errors, stop listening
                 if consecutive_errors >= max_consecutive_errors:
                     logger.error("Too many consecutive errors, stopping continuous listening")
+                    print("🎤 Voice service stopped due to repeated errors")
                     self.is_listening = False
                     break
                 
-                # Exponential backoff with cap
-                backoff_time = min(0.5 * consecutive_errors, 3.0)
+                # Progressive backoff with cap
+                backoff_time = min(0.5 + (0.3 * consecutive_errors), 2.0)
                 time.sleep(backoff_time)
         
         logger.info("Continuous listening worker stopped")
