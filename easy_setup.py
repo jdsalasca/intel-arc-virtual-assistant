@@ -220,12 +220,16 @@ import sys
 sys.path.append(".")
 
 try:
-    from services.enhanced_voice_service import EnhancedVoiceService
+    from services.robust_voice_adapter import create_voice_adapter
     from services.enhanced_web_search import EnhancedWebSearchService
     
     print("🎤 Voice Service Test:")
-    voice = EnhancedVoiceService()
-    voice.test_voice_system()
+    voice = create_voice_adapter()
+    if voice.is_available:
+        results = voice.test_voice_capabilities()
+        print(f"Voice test results: {results['tests_passed']} passed, {results['tests_failed']} failed")
+    else:
+        print("Voice service not available")
     
     print("\\n🌐 Web Search Test:")
     search = EnhancedWebSearchService()

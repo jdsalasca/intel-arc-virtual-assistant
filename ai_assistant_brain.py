@@ -1,6 +1,6 @@
 """
-AI Assistant Brain - Main Intelligence Coordinator
-Integrates voice recognition, web search, and conversational AI.
+AI Assistant Brain - Main Intelligence Coordinator (Clean Version)
+Integrates voice recognition, web search, and conversational AI with robust error handling.
 """
 
 import sys
@@ -16,23 +16,30 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-# Import services
+# Import services with fallback
 try:
-    from services.enhanced_voice_service import EnhancedVoiceService
+    from services.robust_voice_adapter import create_voice_adapter
     from services.enhanced_web_search import EnhancedWebSearchService
 except ImportError as e:
     print(f"⚠️  Import warning: {e}")
-    EnhancedVoiceService = None
+    create_voice_adapter = None
     EnhancedWebSearchService = None
+
+# Import Intel optimizer if available
+try:
+    from services.intel_optimizer import IntelOptimizer
+except ImportError:
+    IntelOptimizer = None
 
 logger = logging.getLogger(__name__)
 
 class AIAssistantBrain:
-    """Main AI Assistant coordinator."""
+    """Main AI Assistant coordinator with robust error handling."""
     
     def __init__(self):
-        self.voice_service = None
+        self.voice_adapter = None
         self.search_service = None
+        self.intel_optimizer = None
         self.is_running = False
         self.conversation_history = []
         
@@ -41,8 +48,14 @@ class AIAssistantBrain:
             "voice_enabled": True,
             "search_enabled": True,
             "auto_speak_responses": True,
-            "max_conversation_history": 50
+            "max_conversation_history": 50,
+            "safe_mode": True,
+            "error_recovery": True
         }
+        
+        # Error tracking
+        self.error_count = 0
+        self.last_error = None
         
         # Initialize services
         self.initialize_services()
@@ -51,17 +64,43 @@ class AIAssistantBrain:
         self.setup_voice_callbacks()
     
     def initialize_services(self):
-        """Initialize voice and search services."""
+        """Initialize voice and search services with comprehensive error handling."""
         print("🧠 Initializing AI Assistant Brain...")
         
-        # Initialize voice service
-        if EnhancedVoiceService and self.config["voice_enabled"]:
+        # Initialize Intel optimizer if available
+        if IntelOptimizer:
             try:
-                self.voice_service = EnhancedVoiceService()
-                print("✅ Voice service initialized")
+                self.intel_optimizer = IntelOptimizer()
+                print("✅ Intel optimizer initialized")
+            except Exception as e:
+                print(f"⚠️  Intel optimizer failed: {e}")
+                self.intel_optimizer = None
+        
+        # Initialize voice adapter
+        if create_voice_adapter and self.config["voice_enabled"]:
+            try:
+                self.voice_adapter = create_voice_adapter(self.intel_optimizer)
+                
+                # Check voice adapter status
+                status = self.voice_adapter.get_status()
+                if status["adapter_available"]:
+                    capabilities = []
+                    if status["microphone_available"]:
+                        capabilities.append("speech recognition")
+                    if status["tts_available"]:
+                        capabilities.append("text-to-speech")
+                    
+                    if capabilities:
+                        print(f"✅ Voice service initialized ({', '.join(capabilities)})")
+                    else:
+                        print("⚠️  Voice service initialized but no capabilities available")
+                else:
+                    print("⚠️  Voice service failed to initialize")
+                    
             except Exception as e:
                 print(f"⚠️  Voice service failed to initialize: {e}")
-                self.voice_service = None
+                self.voice_adapter = None
+                self._log_error("voice_initialization", e)
         
         # Initialize search service
         if EnhancedWebSearchService and self.config["search_enabled"]:
@@ -71,53 +110,85 @@ class AIAssistantBrain:
             except Exception as e:
                 print(f"⚠️  Search service failed to initialize: {e}")
                 self.search_service = None
+                self._log_error("search_initialization", e)
         
         print("🎯 AI Assistant Brain ready!")
     
     def setup_voice_callbacks(self):
-        """Set up voice recognition callbacks."""
-        if self.voice_service:
-            self.voice_service.on_speech_recognized = self.handle_voice_input
-            self.voice_service.on_speech_error = self.handle_voice_error
+        """Set up voice recognition callbacks with error handling."""
+        if self.voice_adapter and hasattr(self.voice_adapter, 'enhanced_voice'):
+            try:
+                if self.voice_adapter.enhanced_voice:
+                    self.voice_adapter.enhanced_voice.on_speech_recognized = self.handle_voice_input
+                    self.voice_adapter.enhanced_voice.on_speech_error = self.handle_voice_error
+            except Exception as e:
+                self._log_error("voice_callback_setup", e)
     
     def handle_voice_input(self, text: str):
-        """Handle recognized voice input."""
-        print(f"🎤 Voice input: {text}")
-        response = self.process_input(text)
-        
-        if response and self.config["auto_speak_responses"]:
-            self.speak(response)
+        """Handle recognized voice input with error recovery."""
+        try:
+            print(f"🎤 Voice input: {text}")
+            response = self.process_input(text)
+            
+            if response and self.config["auto_speak_responses"]:
+                self.speak(response)
+        except Exception as e:
+            self._log_error("voice_input_handling", e)
+            if self.config["error_recovery"]:
+                self.speak("Sorry, I had trouble processing that. Could you try again?")
     
     def handle_voice_error(self, error: str):
         """Handle voice recognition errors."""
-        logger.error(f"Voice error: {error}")
+        # Don't spam with microphone errors - these are now handled gracefully
+        if "NoneType" in error or "close" in error:
+            # Critical microphone error - switch to text mode if needed
+            if self.config.get("auto_switch_to_text", False):
+                logger.info("Switching to text-only mode due to voice errors")
+                self.config["voice_enabled"] = False
+            return
+        
+        # Log other voice errors
+        if "timeout" not in error.lower():
+            logger.warning(f"Voice error: {error}")
     
     def speak(self, text: str):
-        """Speak text using voice service."""
-        if self.voice_service:
-            self.voice_service.speak(text)
-        else:
-            print(f"🔊 {text}")
+        """Speak text using voice adapter with fallback."""
+        try:
+            if self.voice_adapter:
+                success = self.voice_adapter.speak(text)
+                if not success and self.config["safe_mode"]:
+                    # Fallback already handled in adapter
+                    pass
+            else:
+                print(f"🔊 {text}")
+        except Exception as e:
+            self._log_error("speech_output", e)
+            print(f"🔊 {text}")  # Always fallback to text
     
     def process_input(self, user_input: str) -> str:
-        """Process user input and generate response."""
-        user_input = user_input.strip().lower()
-        
-        # Add to conversation history
-        self.add_to_history("user", user_input)
-        
-        # Check for commands
-        if self.is_search_command(user_input):
-            response = self.handle_search_command(user_input)
-        elif self.is_system_command(user_input):
-            response = self.handle_system_command(user_input)
-        else:
-            response = self.generate_conversational_response(user_input)
-        
-        # Add response to history
-        self.add_to_history("assistant", response)
-        
-        return response
+        """Process user input and generate response with error handling."""
+        try:
+            user_input = user_input.strip().lower()
+            
+            # Add to conversation history
+            self.add_to_history("user", user_input)
+            
+            # Check for commands
+            if self.is_search_command(user_input):
+                response = self.handle_search_command(user_input)
+            elif self.is_system_command(user_input):
+                response = self.handle_system_command(user_input)
+            else:
+                response = self.generate_conversational_response(user_input)
+            
+            # Add response to history
+            self.add_to_history("assistant", response)
+            
+            return response
+            
+        except Exception as e:
+            self._log_error("input_processing", e)
+            return "I apologize, but I encountered an error processing your request. Please try again."
     
     def is_search_command(self, text: str) -> bool:
         """Check if input is a search command."""
@@ -133,13 +204,13 @@ class AIAssistantBrain:
         system_keywords = [
             "stop", "quit", "exit", "goodbye", "bye",
             "help", "commands", "what can you do",
-            "test voice", "test search"
+            "test voice", "test search", "status"
         ]
         
         return any(keyword in text for keyword in system_keywords)
     
     def handle_search_command(self, text: str) -> str:
-        """Handle search commands."""
+        """Handle search commands with error handling."""
         if not self.search_service:
             return "Sorry, web search is not available right now."
         
@@ -169,7 +240,7 @@ class AIAssistantBrain:
                 return f"I couldn't find any results for '{search_query}'. Try a different search term."
                 
         except Exception as e:
-            logger.error(f"Search error: {e}")
+            self._log_error("search_command", e)
             return f"I encountered an error while searching for '{search_query}'. Please try again."
     
     def extract_search_query(self, text: str) -> str:
@@ -197,17 +268,37 @@ class AIAssistantBrain:
         elif "help" in text or "commands" in text or "what can you do" in text:
             return self.get_help_message()
         
+        elif "status" in text:
+            return self.get_status_message()
+        
         elif "test voice" in text:
-            if self.voice_service:
-                threading.Thread(target=self.voice_service.test_voice_system, daemon=True).start()
-                return "Running voice system test. Please follow the instructions."
+            if self.voice_adapter:
+                def run_voice_test():
+                    try:
+                        results = self.voice_adapter.test_voice_capabilities()
+                        print(f"\n🧪 Voice test results:")
+                        print(f"   Tests passed: {results['tests_passed']}")
+                        print(f"   Tests failed: {results['tests_failed']}")
+                        for test_name, result in results['test_results'].items():
+                            print(f"   {test_name}: {result}")
+                    except Exception as e:
+                        print(f"Voice test failed: {e}")
+                        
+                threading.Thread(target=run_voice_test, daemon=True).start()
+                return "Running voice system test. Check console for results."
             else:
                 return "Voice service is not available."
         
         elif "test search" in text:
             if self.search_service:
-                threading.Thread(target=self.search_service.test_search_engines, daemon=True).start()
-                return "Running search engine test. Check the console for results."
+                def run_search_test():
+                    try:
+                        self.search_service.test_search_engines()
+                    except Exception as e:
+                        print(f"Search test failed: {e}")
+                        
+                threading.Thread(target=run_search_test, daemon=True).start()
+                return "Running search engine test. Check console for results."
             else:
                 return "Search service is not available."
         
@@ -221,15 +312,21 @@ class AIAssistantBrain:
             return "Hello! I'm your Intel AI Assistant. I can help you search the internet or chat with you. What would you like to do?"
         
         if "how are you" in text:
-            return "I'm doing great! I'm an AI assistant powered by Intel technology. How can I help you today?"
+            return "I'm doing great! I'm an AI assistant with voice and search capabilities. How can I help you today?"
         
         if "your name" in text or "who are you" in text:
-            return "I'm your Intel AI Assistant! I can help you search the internet, answer questions, and have conversations. I'm powered by Intel's advanced hardware optimization."
+            return "I'm your Intel AI Assistant! I can help you search the internet, answer questions, and have conversations. I'm optimized for Intel hardware."
         
         if "im alive" in text or "i'm alive" in text:
             if self.search_service:
                 # This is the specific test case requested
-                threading.Thread(target=lambda: self.search_service.search_live_demo("im alive"), daemon=True).start()
+                def search_demo():
+                    try:
+                        self.search_service.search_live_demo("im alive")
+                    except Exception as e:
+                        print(f"Search demo failed: {e}")
+                        
+                threading.Thread(target=search_demo, daemon=True).start()
                 return "I'll search for 'im alive' on the internet for you! Check the console for detailed results."
             else:
                 return "I heard you say 'I'm alive'! That's great. Unfortunately, my search capabilities aren't available right now."
@@ -238,7 +335,7 @@ class AIAssistantBrain:
             return "You're welcome! Is there anything else I can help you with?"
         
         # Default response
-        return "That's interesting! I can help you search for information on the internet. Just ask me to search for something, or say 'help' to see what I can do."
+        return "That's interesting! I can help you search for information on the internet or answer questions. Just ask me to search for something, or say 'help' to see what I can do."
     
     def get_help_message(self) -> str:
         """Get help message with available commands."""
@@ -256,7 +353,8 @@ class AIAssistantBrain:
 
 🛠️ System Commands:
   • "Help" - Show this help message
-  • "Test voice" - Test voice recognition and speech
+  • "Status" - Show system status
+  • "Test voice" - Test voice capabilities
   • "Test search" - Test search engines
   • "Stop" or "Goodbye" - Exit the assistant
 
@@ -270,17 +368,40 @@ Just start talking or typing to begin!
         
         return help_text.strip()
     
+    def get_status_message(self) -> str:
+        """Get system status message."""
+        status = self.get_status()
+        
+        msg = "🔧 System Status:\n"
+        msg += f"  • Voice available: {'✅' if status['voice_available'] else '❌'}\n"
+        msg += f"  • Search available: {'✅' if status['search_available'] else '❌'}\n"
+        msg += f"  • Intel optimizer: {'✅' if status['intel_optimizer_available'] else '❌'}\n"
+        msg += f"  • Conversations: {status['conversation_history']}\n"
+        
+        if 'voice_status' in status:
+            voice_status = status['voice_status']
+            msg += f"  • Microphone: {'✅' if voice_status['microphone_available'] else '❌'}\n"
+            msg += f"  • Text-to-speech: {'✅' if voice_status['tts_available'] else '❌'}\n"
+        
+        if self.error_count > 0:
+            msg += f"  • Errors: {self.error_count} (last: {self.last_error})\n"
+        
+        return msg
+    
     def add_to_history(self, role: str, content: str):
         """Add message to conversation history."""
-        self.conversation_history.append({
-            "role": role,
-            "content": content,
-            "timestamp": time.time()
-        })
-        
-        # Limit history size
-        if len(self.conversation_history) > self.config["max_conversation_history"]:
-            self.conversation_history = self.conversation_history[-self.config["max_conversation_history"]:]
+        try:
+            self.conversation_history.append({
+                "role": role,
+                "content": content,
+                "timestamp": time.time()
+            })
+            
+            # Limit history size
+            if len(self.conversation_history) > self.config["max_conversation_history"]:
+                self.conversation_history = self.conversation_history[-self.config["max_conversation_history"]:]
+        except Exception as e:
+            self._log_error("history_management", e)
     
     def start_interactive_mode(self):
         """Start interactive mode with both voice and text input."""
@@ -293,9 +414,15 @@ Just start talking or typing to begin!
         self.is_running = True
         
         # Start voice listening if available
-        if self.voice_service:
-            self.voice_service.start_continuous_listening()
-            print("🎤 Voice recognition is active")
+        if self.voice_adapter and self.voice_adapter.has_microphone:
+            try:
+                listening_started = self.voice_adapter.start_continuous_listening()
+                if listening_started:
+                    print("🎤 Voice recognition is active")
+                else:
+                    print("⚠️  Voice recognition failed to start")
+            except Exception as e:
+                print(f"⚠️  Voice recognition error: {e}")
         
         # Welcome message
         welcome_msg = "Hello! I'm your Intel AI Assistant. How can I help you today?"
@@ -304,38 +431,24 @@ Just start talking or typing to begin!
         
         try:
             while self.is_running:
-                # Check for voice input
-                if self.voice_service:
-                    voice_input = self.voice_service.get_speech_from_queue()
-                    if voice_input:
-                        print(f"🎤 You (voice): {voice_input}")
-                        response = self.process_input(voice_input)
-                        print(f"🤖 Assistant: {response}")
-                        continue
-                
-                # Check for text input (non-blocking)
                 try:
-                    import select
-                    import sys
+                    # Check for voice input
+                    if self.voice_adapter:
+                        voice_input = self.voice_adapter.get_speech_from_queue()
+                        if voice_input:
+                            print(f"🎤 You (voice): {voice_input}")
+                            response = self.process_input(voice_input)
+                            print(f"🤖 Assistant: {response}")
+                            continue
                     
-                    # For Windows, use input with timeout
-                    if sys.platform == "win32":
-                        time.sleep(0.1)  # Small delay for voice input
-                        continue
-                    else:
-                        # Unix-like systems
-                        if select.select([sys.stdin], [], [], 0.1)[0]:
-                            text_input = input().strip()
-                            if text_input:
-                                print(f"⌨️  You (text): {text_input}")
-                                response = self.process_input(text_input)
-                                print(f"🤖 Assistant: {response}")
-                        
+                    # Small delay to prevent high CPU usage
+                    time.sleep(0.1)
+                    
                 except (EOFError, KeyboardInterrupt):
                     break
-                
-                # Small delay to prevent high CPU usage
-                time.sleep(0.1)
+                except Exception as e:
+                    self._log_error("interactive_loop", e)
+                    time.sleep(0.5)  # Brief pause on error
                 
         except KeyboardInterrupt:
             pass
@@ -371,6 +484,9 @@ Just start talking or typing to begin!
                     
                 except (EOFError, KeyboardInterrupt):
                     break
+                except Exception as e:
+                    self._log_error("text_mode", e)
+                    print("Sorry, I encountered an error. Please try again.")
                     
         finally:
             self.stop()
@@ -380,45 +496,73 @@ Just start talking or typing to begin!
         print("\n🎯 Intel AI Assistant - Demo Mode")
         print("=" * 40)
         
-        # Test voice capabilities
-        if self.voice_service:
-            print("🎤 Testing voice capabilities...")
-            self.speak("Hello! I am your Intel AI Assistant. Let me demonstrate my capabilities.")
-            time.sleep(2)
-        
-        # Test search capabilities
-        if self.search_service:
-            print("🔍 Testing search capabilities...")
-            self.speak("Now I'll search the internet for 'im alive' as requested.")
+        try:
+            # Test voice capabilities
+            if self.voice_adapter and self.voice_adapter.has_tts:
+                print("🎤 Testing voice capabilities...")
+                self.speak("Hello! I am your Intel AI Assistant. Let me demonstrate my capabilities.")
+                time.sleep(2)
             
-            # Perform the specific search requested
-            response = self.process_input("search for im alive")
-            print(f"🤖 Search result: {response}")
-            self.speak("Search completed! Check the console for detailed results.")
-        
-        # Interactive demo
-        self.speak("Demo completed! You can now interact with me by speaking or typing.")
-        print("\n🎮 Interactive demo starting...")
-        self.start_text_only_mode()
+            # Test search capabilities
+            if self.search_service:
+                print("🔍 Testing search capabilities...")
+                self.speak("Now I'll search the internet for 'im alive' as requested.")
+                
+                # Perform the specific search requested
+                response = self.process_input("search for im alive")
+                print(f"🤖 Search result: {response}")
+                if self.voice_adapter:
+                    self.speak("Search completed! Check the console for detailed results.")
+            
+            # Interactive demo
+            if self.voice_adapter:
+                self.speak("Demo completed! You can now interact with me by speaking or typing.")
+            
+            print("\n🎮 Interactive demo starting...")
+            self.start_text_only_mode()
+            
+        except Exception as e:
+            print(f"Demo failed: {e}")
+            self._log_error("demo_mode", e)
     
     def stop(self):
-        """Stop the assistant."""
+        """Stop the assistant safely."""
         self.is_running = False
         
-        if self.voice_service:
-            self.voice_service.stop_continuous_listening()
+        try:
+            if self.voice_adapter:
+                self.voice_adapter.safe_shutdown()
+        except Exception as e:
+            self._log_error("shutdown", e)
         
         print("\n👋 Intel AI Assistant stopped")
     
     def get_status(self) -> Dict[str, Any]:
         """Get current status."""
-        return {
+        status = {
             "running": self.is_running,
-            "voice_available": self.voice_service is not None,
+            "voice_available": self.voice_adapter is not None,
             "search_available": self.search_service is not None,
+            "intel_optimizer_available": self.intel_optimizer is not None,
             "conversation_history": len(self.conversation_history),
+            "error_count": self.error_count,
             "config": self.config
         }
+        
+        # Add detailed voice status if available
+        if self.voice_adapter:
+            try:
+                status["voice_status"] = self.voice_adapter.get_status()
+            except Exception as e:
+                status["voice_error"] = str(e)
+                
+        return status
+    
+    def _log_error(self, component: str, error: Exception):
+        """Log error for debugging."""
+        self.error_count += 1
+        self.last_error = f"{component}: {str(error)}"
+        logger.error(f"AI Brain error in {component}: {error}")
 
 def main():
     """Main entry point."""
@@ -437,13 +581,39 @@ def main():
     try:
         if args.test:
             # Run tests
-            if assistant.voice_service:
-                assistant.voice_service.test_voice_system()
+            print("🧪 Running system tests...")
             
+            status = assistant.get_status()
+            print("System Status:")
+            for key, value in status.items():
+                if key != "config":
+                    print(f"  {key}: {value}")
+            
+            # Test voice if available
+            if assistant.voice_adapter:
+                print("\nTesting voice capabilities...")
+                try:
+                    results = assistant.voice_adapter.test_voice_capabilities()
+                    print(f"Voice tests: {results['tests_passed']} passed, {results['tests_failed']} failed")
+                except Exception as e:
+                    print(f"Voice test error: {e}")
+            
+            # Test search if available
             if assistant.search_service:
-                assistant.search_service.test_search_engines()
-                print("\n" + "="*50)
-                assistant.search_service.search_live_demo("im alive")
+                print("\nTesting search capabilities...")
+                try:
+                    results = assistant.search_service.search("test query", 1)
+                    print(f"Search test: {'✅ Working' if results else '⚠️ No results'}")
+                except Exception as e:
+                    print(f"Search test: ❌ Failed ({e})")
+            
+            # Test the specific "im alive" functionality
+            print("\nTesting 'im alive' functionality...")
+            try:
+                response = assistant.process_input("im alive")
+                print(f"'Im alive' response: {response}")
+            except Exception as e:
+                print(f"'Im alive' test failed: {e}")
         
         elif args.demo:
             assistant.run_demo()
@@ -453,7 +623,7 @@ def main():
         
         else:
             # Default: try interactive mode with voice
-            if assistant.voice_service:
+            if assistant.voice_adapter and assistant.voice_adapter.has_microphone:
                 assistant.start_interactive_mode()
             else:
                 print("🎤 Voice not available, starting text-only mode...")
@@ -461,6 +631,9 @@ def main():
                 
     except KeyboardInterrupt:
         print("\n🛑 Interrupted by user")
+    except Exception as e:
+        print(f"❌ Assistant failed: {e}")
+        logger.error(f"Main execution error: {e}")
     finally:
         assistant.stop()
 

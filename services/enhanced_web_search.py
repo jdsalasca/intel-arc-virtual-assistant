@@ -82,9 +82,9 @@ class EnhancedWebSearchService:
     def search_duckduckgo(self, query: str, max_results: int = 5) -> List[SearchResult]:
         """Search using DuckDuckGo."""
         try:
-            # Try using duckduckgo-search library first
+            # Try using ddgs library (new package name)
             try:
-                from duckduckgo_search import DDGS
+                from ddgs import DDGS
                 
                 results = []
                 with DDGS() as ddgs:
@@ -99,8 +99,24 @@ class EnhancedWebSearchService:
                 return results
                 
             except ImportError:
-                # Fallback to direct API approach
-                return self.search_duckduckgo_api(query, max_results)
+                # Fallback to old duckduckgo_search if available
+                try:
+                    from duckduckgo_search import DDGS
+                    
+                    results = []
+                    with DDGS() as ddgs:
+                        for result in ddgs.text(query, max_results=max_results):
+                            results.append(SearchResult(
+                                title=result.get('title', ''),
+                                url=result.get('href', ''),
+                                snippet=result.get('body', ''),
+                                source='duckduckgo'
+                            ))
+                    
+                    return results
+                except ImportError:
+                    # Fallback to direct API approach
+                    return self.search_duckduckgo_api(query, max_results)
                 
         except Exception as e:
             logger.error(f"DuckDuckGo search error: {e}")

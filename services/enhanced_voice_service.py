@@ -34,112 +34,118 @@ class EnhancedVoiceService:
         self.on_speech_recognized: Optional[Callable[[str], None]] = None
         self.on_speech_error: Optional[Callable[[str], None]] = None
         
-        # System capabilities
-        self.capabilities = self.check_system_capabilities()
-        
         self.initialize_voice_system()
-    
-    def check_system_capabilities(self) -> Dict[str, bool]:
-        """Check what voice capabilities are available on the system."""
-        capabilities = {
-            "microphone_devices": False,
-            "tts_engine": False,
-            "speech_recognition": False,
-            "audio_drivers": False
-        }
-        
-        try:
-            # Check for microphone devices
-            mic_list = sr.Microphone.list_microphone_names()
-            capabilities["microphone_devices"] = len(mic_list) > 0
-            logger.info(f"Found {len(mic_list)} microphone devices")
-        except Exception as e:
-            logger.warning(f"Could not enumerate microphone devices: {e}")
-        
-        try:
-            # Check TTS engine availability
-            test_engine = pyttsx3.init()
-            if test_engine:
-                test_engine.stop()
-                capabilities["tts_engine"] = True
-        except Exception as e:
-            logger.warning(f"TTS engine not available: {e}")
-        
-        try:
-            # Check speech recognition (basic test)
-            test_recognizer = sr.Recognizer()
-            capabilities["speech_recognition"] = True
-        except Exception as e:
-            logger.warning(f"Speech recognition not available: {e}")
-        
-        # Check audio drivers (basic test)
-        try:
-            import pyaudio
-            pa = pyaudio.PyAudio()
-            capabilities["audio_drivers"] = pa.get_device_count() > 0
-            pa.terminate()
-        except Exception as e:
-            logger.warning(f"Audio drivers check failed: {e}")
-        
-        return capabilities
     
     def initialize_voice_system(self):
         """Initialize speech recognition and TTS systems."""
-        # Initialize TTS engine first (more likely to work)
         try:
-            self.tts_engine = pyttsx3.init()
+            # Initialize microphone with error handling
+            self.microphone = self._safe_initialize_microphone()
             
-            # Configure TTS settings
-            self.tts_engine.setProperty('rate', self.voice_rate)
-            self.tts_engine.setProperty('volume', self.voice_volume)
+            # Initialize TTS engine
+            self.tts_engine = self._safe_initialize_tts()
             
-            # Try to set a better voice if available
-            voices = self.tts_engine.getProperty('voices')
-            if voices:
-                # Prefer female voice if available
-                for voice in voices:
-                    if 'female' in voice.name.lower() or 'zira' in voice.name.lower():
-                        self.tts_engine.setProperty('voice', voice.id)
-                        break
-            
-            logger.info("TTS engine initialized successfully")
+            # Report status
+            if self.microphone and self.tts_engine:
+                print("✅ Voice service initialized")
+                logger.info("Voice system fully initialized")
+            elif self.tts_engine:
+                print("⚠️ Voice system partially initialized (TTS only)")
+                logger.warning("Voice system initialized with TTS only - no microphone")
+            else:
+                print("❌ Voice system initialization failed")
+                logger.error("Voice system initialization failed completely")
             
         except Exception as e:
-            logger.error(f"Failed to initialize TTS engine: {e}")
-            print(f"⚠️  TTS engine initialization failed: {e}")
-            self.tts_engine = None
-        
-        # Initialize microphone (more likely to fail)
+            logger.error(f"Failed to initialize voice system: {e}")
+            print(f"⚠️  Voice system initialization failed: {e}")
+            
+    def _safe_initialize_microphone(self):
+        """Safely initialize microphone with proper error handling."""
         try:
             # Check if microphone devices are available
-            mic_list = sr.Microphone.list_microphone_names()
-            if not mic_list:
-                raise RuntimeError("No microphone devices found")
-            
-            self.microphone = sr.Microphone()
-            
-            # Calibrate for ambient noise with timeout
             print("🎤 Calibrating microphone for ambient noise...")
-            with self.microphone as source:
-                self.recognizer.adjust_for_ambient_noise(source, duration=1)
-            print("✅ Microphone calibrated!")
             
-            logger.info("Microphone initialized successfully")
+            try:
+                microphone_list = sr.Microphone.list_microphone_names()
+                if not microphone_list:
+                    print("⚠️  No microphone devices found")
+                    return None
+            except Exception as e:
+                print(f"⚠️  Could not enumerate microphones: {e}")
+                # Continue anyway - maybe there's a default device
+                
+            # Try to initialize microphone with different approaches
+            mic = None
+            
+            # Approach 1: Try default microphone
+            try:
+                mic = sr.Microphone()
+                # Test that we can actually open and use it
+                with mic as source:
+                    if hasattr(source, 'stream') or hasattr(source, 'CHUNK'):
+                        # Quick ambient noise adjustment
+                        self.recognizer.adjust_for_ambient_noise(source, duration=0.2)
+                        print("✅ Microphone calibrated!")
+                        return mic
+                    else:
+                        raise RuntimeError("Microphone source invalid")
+            except Exception as e:
+                print(f"⚠️  Default microphone failed: {e}")
+                mic = None
+            
+            # Approach 2: Try specific device index if default failed
+            if mic is None:
+                try:
+                    # Try device index 0 explicitly
+                    mic = sr.Microphone(device_index=0)
+                    with mic as source:
+                        self.recognizer.adjust_for_ambient_noise(source, duration=0.2)
+                        print("✅ Microphone calibrated (device 0)!")
+                        return mic
+                except Exception as e:
+                    print(f"⚠️  Device 0 microphone failed: {e}")
+                    mic = None
+            
+            # If all approaches failed
+            if mic is None:
+                print("⚠️  No working microphone found - voice input disabled")
+                return None
+                
+        except Exception as e:
+            print(f"⚠️  Microphone initialization failed: {e}")
+            return None
+            
+    def _safe_initialize_tts(self):
+        """Safely initialize TTS engine."""
+        try:
+            engine = pyttsx3.init()
+            
+            # Configure TTS settings with error handling
+            try:
+                engine.setProperty('rate', self.voice_rate)
+                engine.setProperty('volume', self.voice_volume)
+                
+                # Try to set a better voice if available
+                voices = engine.getProperty('voices')
+                if voices:
+                    # Prefer female voice if available
+                    for voice in voices:
+                        try:
+                            if 'female' in voice.name.lower() or 'zira' in voice.name.lower():
+                                engine.setProperty('voice', voice.id)
+                                break
+                        except:
+                            continue
+                            
+            except Exception as e:
+                print(f"⚠️  TTS configuration warning: {e}")
+                
+            return engine
             
         except Exception as e:
-            logger.error(f"Failed to initialize microphone: {e}")
-            print(f"⚠️  Microphone initialization failed: {e}")
-            self.microphone = None
-        
-        # Final status
-        if self.tts_engine and self.microphone:
-            print("✅ Voice system fully initialized")
-        elif self.tts_engine:
-            print("⚠️  Voice system partially initialized (TTS only)")
-        elif self.microphone:
-            print("⚠️  Voice system partially initialized (Speech recognition only)")
-        else:
-            print("❌ Voice system initialization failed")
+            print(f"⚠️  TTS initialization failed: {e}")
+            return None
     
     def speak(self, text: str, blocking: bool = False):
         """Convert text to speech."""
@@ -170,41 +176,78 @@ class EnhancedVoiceService:
             return None
         
         try:
-            print("🎤 Listening...")
-            with self.microphone as source:
-                # Add error handling for microphone context
-                if source is None:
-                    logger.error("Microphone source is None")
-                    return None
-                
-                audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=10)
+            # Verify microphone is still valid before using
+            if not hasattr(self.microphone, '__enter__') or not hasattr(self.microphone, '__exit__'):
+                logger.error("Microphone object is invalid")
+                self.microphone = None
+                return None
             
-            print("🔄 Processing speech...")
+            # Only print listening message if not in continuous mode
+            if not self.is_listening:
+                print("🎤 Listening...")
+            
+            # Use a more robust approach with better error handling
+            audio = None
+            try:
+                with self.microphone as source:
+                    # Validate the source object
+                    if source is None:
+                        logger.error("Microphone source is None")
+                        self.microphone = None
+                        return None
+                    
+                    # Quick ambient noise adjustment for non-continuous mode
+                    if not self.is_listening:
+                        self.recognizer.adjust_for_ambient_noise(source, duration=0.1)
+                    
+                    # Listen for audio
+                    audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=10)
+                    
+            except (OSError, AttributeError, RuntimeError) as mic_error:
+                logger.error(f"Microphone context error: {mic_error}")
+                self.microphone = None
+                return None
+            except Exception as mic_error:
+                logger.error(f"Microphone error: {mic_error}")
+                # For any other microphone error, disable it
+                self.microphone = None
+                return None
+            
+            # Process the audio if we got it
+            if audio is None:
+                return None
+                
+            if not self.is_listening:
+                print("🔄 Processing speech...")
+                
             text = self.recognizer.recognize_google(audio, language=self.voice_language)
-            print(f"🎯 Recognized: {text}")
+            
+            if not self.is_listening:
+                print(f"🎯 Recognized: {text}")
+                
             return text
             
         except sr.WaitTimeoutError:
-            print("⏱️  Listening timeout")
+            if not self.is_listening:
+                print("⏱️  Listening timeout")
             return None
         except sr.UnknownValueError:
-            print("❓ Could not understand audio")
+            if not self.is_listening:
+                print("❓ Could not understand audio")
             return None
         except sr.RequestError as e:
-            print(f"❌ Speech recognition error: {e}")
             logger.error(f"Speech recognition service error: {e}")
             return None
-        except AttributeError as e:
-            if "'NoneType' object has no attribute 'close'" in str(e):
-                logger.error("Microphone context manager error - microphone may be unavailable")
-                self.microphone = None  # Reset microphone to prevent further errors
-                return None
-            else:
-                logger.error(f"Attribute error in speech recognition: {e}")
-                return None
         except Exception as e:
-            logger.error(f"Unexpected error in speech recognition: {e}")
-            print(f"❌ Unexpected error: {e}")
+            # Log the error but don't spam the user in continuous mode
+            logger.error(f"Unexpected listening error: {e}")
+            # If it's a critical error with the microphone, disable it
+            if "'NoneType'" in str(e) or "close" in str(e):
+                logger.warning("Disabling microphone due to critical error")
+                self.microphone = None
+            # Don't print error messages in continuous mode to avoid spam
+            if not self.is_listening:
+                print(f"❌ Unexpected error: {e}")
             return None
     
     def start_continuous_listening(self):
@@ -227,40 +270,73 @@ class EnhancedVoiceService:
         print("🛑 Stopped continuous listening")
     
     def _continuous_listen_worker(self):
-        """Worker thread for continuous listening."""
-        failed_attempts = 0
-        max_failed_attempts = 5
+        """Worker thread for continuous listening with robust error handling."""
+        microphone_failures = 0
+        max_failures = 3  # Reduced max failures
+        consecutive_errors = 0
+        max_consecutive_errors = 10
         
         while self.is_listening:
             try:
-                # Check if microphone is still available
+                # If microphone is unavailable, try to reinitialize or stop
                 if not self.microphone:
-                    logger.warning("Microphone not available, stopping continuous listening")
-                    break
+                    microphone_failures += 1
+                    if microphone_failures >= max_failures:
+                        logger.warning("Too many microphone failures, stopping continuous listening")
+                        self.is_listening = False
+                        break
+                    
+                    # Try to reinitialize microphone
+                    logger.info("Attempting to reinitialize microphone...")
+                    self.microphone = self._safe_initialize_microphone()
+                    
+                    if not self.microphone:
+                        time.sleep(5.0)  # Wait longer when microphone is unavailable
+                        continue
                 
+                # Reset failure counters on successful microphone detection
+                microphone_failures = 0
+                consecutive_errors = 0
+                
+                # Attempt speech recognition with timeout
                 text = self.listen_once(timeout=1.0)
                 if text:
-                    failed_attempts = 0  # Reset counter on success
                     self.voice_queue.put(text)
                     if self.on_speech_recognized:
                         self.on_speech_recognized(text)
+                else:
+                    # Brief pause between listening attempts
+                    time.sleep(0.1)
                         
             except Exception as e:
-                failed_attempts += 1
-                logger.error(f"Continuous listening error (attempt {failed_attempts}): {e}")
+                consecutive_errors += 1
+                error_msg = str(e)
                 
-                if self.on_speech_error:
-                    self.on_speech_error(str(e))
+                # Log the error but avoid spamming
+                if consecutive_errors <= 3:
+                    logger.error(f"Continuous listening error: {e}")
                 
-                # If too many failures, stop listening
-                if failed_attempts >= max_failed_attempts:
-                    logger.error(f"Too many failed attempts ({max_failed_attempts}), stopping continuous listening")
+                # Check for critical microphone errors
+                if ("'NoneType'" in error_msg and "close" in error_msg) or "Microphone" in error_msg:
+                    logger.warning("Critical microphone error detected, disabling microphone")
+                    self.microphone = None
+                    microphone_failures += 1
+                
+                # Call error handler if available
+                if self.on_speech_error and consecutive_errors <= 3:
+                    self.on_speech_error(error_msg)
+                
+                # If too many consecutive errors, stop listening
+                if consecutive_errors >= max_consecutive_errors:
+                    logger.error("Too many consecutive errors, stopping continuous listening")
                     self.is_listening = False
                     break
                 
-                # Exponential backoff for retries
-                sleep_time = min(0.5 * (2 ** failed_attempts), 5.0)
-                time.sleep(sleep_time)
+                # Exponential backoff with cap
+                backoff_time = min(0.5 * consecutive_errors, 3.0)
+                time.sleep(backoff_time)
+        
+        logger.info("Continuous listening worker stopped")
     
     def get_speech_from_queue(self) -> Optional[str]:
         """Get recognized speech from queue (non-blocking)."""
@@ -385,13 +461,7 @@ class EnhancedVoiceService:
             "voice_rate": self.voice_rate,
             "voice_volume": self.voice_volume,
             "voice_language": self.voice_language,
-            "available_voices": len(self.get_available_voices()),
-            "system_capabilities": self.capabilities,
-            "initialization_status": {
-                "tts_initialized": self.tts_engine is not None,
-                "microphone_initialized": self.microphone is not None,
-                "full_voice_system": self.tts_engine is not None and self.microphone is not None
-            }
+            "available_voices": len(self.get_available_voices())
         }
     
     def save_voice_settings(self, file_path: str = "config/voice_settings.json"):

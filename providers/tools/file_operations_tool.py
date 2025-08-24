@@ -238,37 +238,25 @@ class FileOperationsTool(IFileTool):
             if len(str(path_obj)) > self.max_path_length:
                 raise ToolExecutionException("Path too long")
             
-            # Check for forbidden characters (more permissive for Windows)
-            forbidden_chars = ['<', '>', '"', '|', '?', '*']
-            # Note: Removed ':' to allow Windows drive letters
-            path_str = str(path_obj)
-            if any(char in path_str for char in forbidden_chars):
+            # Check for forbidden characters
+            if any(char in str(path_obj) for char in ['<', '>', ':', '"', '|', '?', '*']):
                 raise ToolExecutionException("Path contains forbidden characters")
             
-            # Check if path is within allowed directories or current working directory
+            # Check if path is within allowed directories
+            path_str = str(path_obj)
             allowed = False
             
-            # Allow current working directory and subdirectories
-            cwd = Path.cwd().resolve()
-            if str(path_obj).startswith(str(cwd)):
-                allowed = True
-            
-            # Check configured allowed directories
-            if not allowed:
-                for allowed_dir in self.allowed_directories:
-                    try:
-                        allowed_dir_resolved = Path(allowed_dir).expanduser().resolve()
-                        if str(path_obj).startswith(str(allowed_dir_resolved)):
-                            allowed = True
-                            break
-                    except Exception:
-                        continue
+            for allowed_dir in self.allowed_directories:
+                allowed_dir_resolved = str(Path(allowed_dir).expanduser().resolve())
+                if path_str.startswith(allowed_dir_resolved):
+                    allowed = True
+                    break
             
             if not allowed:
                 raise ToolExecutionException("Path is outside allowed directories")
             
-            # Check file extension for security (only for files, not directories)
-            if path_obj.suffix and path_obj.suffix.lower() in self.forbidden_extensions:
+            # Check file extension for security
+            if path_obj.suffix.lower() in self.forbidden_extensions:
                 raise ToolExecutionException("File type not allowed")
             
             return path_obj
@@ -386,7 +374,7 @@ class FileOperationsTool(IFileTool):
                 success=True,
                 data={
                     "path": str(path),
-                    "files": items,  # Changed from 'items' to 'files' to match test expectation
+                    "items": items,
                     "count": len(items),
                     "recursive": recursive
                 }
